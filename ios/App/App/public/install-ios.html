@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#0c7a73">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="千里の道">
+  <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
+  <title>iPhone版インストール — 千里の道も一歩から</title>
+  <link rel="icon" href="./icons/icon-192.png" type="image/png">
+  <link rel="stylesheet" href="./css/style.css">
+  <style>
+    .install-page { max-width: 520px; margin: 0 auto; padding: 24px 16px 48px; }
+    .install-page h1 { font-size: 1.35rem; color: #065954; margin: 0 0 8px; }
+    .install-page .lead { color: #5f7a75; line-height: 1.7; margin-bottom: 20px; }
+    .install-card { background: #fff; border: 1px solid #cce8e2; border-radius: 16px; padding: 20px; margin-bottom: 16px; }
+    .install-card h2 { font-size: 1rem; color: #065954; margin: 0 0 12px; }
+    .install-card ol { margin: 0; padding-left: 1.2rem; line-height: 1.8; color: #1a3d38; }
+    .install-card li { margin-bottom: 8px; }
+    .install-note { font-size: 0.88rem; color: #5f7a75; line-height: 1.6; }
+    .install-badge { display: inline-block; background: #ecfdf5; color: #065954; font-size: 0.8rem; font-weight: 700; padding: 4px 10px; border-radius: 999px; margin-bottom: 12px; }
+    .install-cta { display: block; width: 100%; padding: 16px; border: none; border-radius: 14px; background: #0c7a73; color: #fff; font-size: 1.05rem; font-weight: 700; text-align: center; text-decoration: none; margin-bottom: 12px; box-sizing: border-box; }
+    .install-cta.secondary { background: #fff; color: #0c7a73; border: 2px solid #0c7a73; }
+    .install-cta:disabled, .install-cta.muted { background: #5f7a75; pointer-events: none; }
+    .install-success { background: #ecfdf5; border-color: #86efac; }
+    .install-steps-visual { display: grid; gap: 10px; margin: 16px 0; }
+    .install-step-chip { display: flex; gap: 12px; align-items: center; background: #f8fffd; border: 1px solid #cce8e2; border-radius: 12px; padding: 12px; }
+    .install-step-num { width: 28px; height: 28px; border-radius: 999px; background: #0c7a73; color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; flex-shrink: 0; }
+    .install-step-text { font-size: 0.95rem; line-height: 1.5; color: #1a3d38; }
+    .share-icon { font-size: 1.4rem; line-height: 1; }
+    .install-warning { background: #fff7ed; border: 1px solid #fed7aa; border-radius: 12px; padding: 14px; margin-bottom: 16px; color: #9a3412; font-size: 0.92rem; line-height: 1.6; }
+    .install-legal { font-size: 0.82rem; margin-top: 24px; color: #5f7a75; }
+    .install-legal a { color: #0c7a73; }
+    .install-tag { display: inline-block; font-size: 0.75rem; font-weight: 700; color: #065954; background: #d1fae5; padding: 2px 8px; border-radius: 999px; margin-left: 6px; vertical-align: middle; }
+  </style>
+</head>
+<body>
+  <div class="install-page">
+    <span class="install-badge">有料 note ご購入者向け · iPhone</span>
+    <h1>iPhone版のインストール</h1>
+    <p class="lead">App Store 不要。<strong>約30秒・3タップ</strong>でホーム画面からアプリのように使えます。</p>
+
+    <div class="install-warning" id="safari-warning" hidden>
+      <strong>Safari で開いてください</strong><br>
+      LINE や Instagram などのアプリ内ブラウザでは「ホーム画面に追加」が使えません。下のボタンで Safari に移動してください。
+    </div>
+
+    <div class="install-card install-success" id="installed-card" hidden>
+      <h2>インストール済みです</h2>
+      <p class="install-note">ホーム画面の「千里の道」アイコンから開いてください。次回からはワンタップで起動できます。</p>
+      <a class="install-cta" id="open-app" href="./index.html">アプリを開く</a>
+    </div>
+
+    <div id="install-flow">
+      <div class="install-card">
+        <h2>かんたんインストール<span class="install-tag">おすすめ</span></h2>
+        <p class="install-note">TestFlight も App Store も不要。Safari からホーム画面に追加するだけです。</p>
+        <div class="install-steps-visual">
+          <div class="install-step-chip">
+            <span class="install-step-num">1</span>
+            <span class="install-step-text">画面下（または上）の <span class="share-icon">⬆️</span> <strong>共有</strong> ボタンをタップ</span>
+          </div>
+          <div class="install-step-chip">
+            <span class="install-step-num">2</span>
+            <span class="install-step-text">メニューから <strong>「ホーム画面に追加」</strong> を選ぶ</span>
+          </div>
+          <div class="install-step-chip">
+            <span class="install-step-num">3</span>
+            <span class="install-step-text">右上の <strong>「追加」</strong> をタップ → 完了</span>
+          </div>
+        </div>
+        <a class="install-cta secondary" id="open-safari" href="#" hidden>Safari で開く</a>
+      </div>
+
+      <div class="install-card" id="native-card">
+        <h2>ネイティブ版（TestFlight）</h2>
+        <p class="install-note" id="native-desc">歩数の自動記録がより安定します。配信開始後、下のボタン1つでインストールできます。</p>
+        <a class="install-cta" id="testflight-link" href="#" hidden>TestFlight でインストール</a>
+        <p class="install-note" id="testflight-pending">※ 現在準備中です。公開後、このページのボタンからインストールできます。</p>
+      </div>
+
+      <div class="install-card">
+        <h2>インストール後</h2>
+        <ol>
+          <li>ホーム画面の <strong>「千里の道」</strong> アイコンをタップ</li>
+          <li>初回のみ <strong>モーション（歩数）</strong> の許可を「許可」</li>
+          <li>「はじめる」をタップすれば、すぐに旅を始められます</li>
+        </ol>
+      </div>
+
+      <div class="install-card">
+        <h2>よくある質問</h2>
+        <p class="install-note"><strong>Android との違い</strong><br>iPhone のホーム画面版は、画面を開いている間に歩数を記録します。ネイティブ版（TestFlight）公開後は、より自動的に記録されます。</p>
+        <p class="install-note" style="margin-top:12px"><strong>アップデート</strong><br>Web 版は自動で最新になります。ネイティブ版は TestFlight から更新してください。</p>
+        <p class="install-note" style="margin-top:12px"><strong>歩数が記録されない</strong><br>設定 → プライバシーとセキュリティ → モーションとフィットネス → 「千里の道」をオンにしてください。</p>
+        <p class="install-note" style="margin-top:12px"><strong>Android の方</strong><br><a href="./install-android.html">Android版インストールページ</a> をご利用ください。</p>
+      </div>
+    </div>
+
+    <p class="install-legal">
+      <a href="./index.html">アプリを開く</a> ·
+      <a href="./terms.html">利用規約</a> ·
+      <a href="./privacy.html">プライバシーポリシー</a>
+    </p>
+  </div>
+  <script type="module">
+    import { IOS_TESTFLIGHT_URL, PRODUCTION_URL } from './js/distribution-config.js';
+
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches
+      || window.navigator.standalone === true;
+    const ua = navigator.userAgent || '';
+    const isIOS = /iPad|iPhone|iPod/i.test(ua) && !window.MSStream;
+    const isSafari = isIOS && /Safari/i.test(ua) && !/CriOS|FxiOS|EdgiOS|Line|Instagram|FBAN|FBAV/i.test(ua);
+
+    if (isStandalone) {
+      document.getElementById('install-flow').hidden = true;
+      document.getElementById('installed-card').hidden = false;
+      document.getElementById('open-app').href = './index.html';
+    }
+
+    if (isIOS && !isSafari) {
+      document.getElementById('safari-warning').hidden = false;
+      const safariBtn = document.getElementById('open-safari');
+      safariBtn.hidden = false;
+      const pageUrl = `${PRODUCTION_URL || location.origin}/install-ios.html`;
+      safariBtn.href = pageUrl;
+      safariBtn.addEventListener('click', (event) => {
+        event.preventDefault();
+        location.href = pageUrl;
+      });
+    }
+
+    if (IOS_TESTFLIGHT_URL) {
+      const link = document.getElementById('testflight-link');
+      link.href = IOS_TESTFLIGHT_URL;
+      link.hidden = false;
+      document.getElementById('testflight-pending').hidden = true;
+      document.getElementById('native-desc').textContent =
+        '歩数の自動記録がより安定します。TestFlight アプリが未インストールの場合は、先に App Store から TestFlight を入れてください（初回のみ）。';
+    }
+  </script>
+</body>
+</html>

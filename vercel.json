@@ -1,0 +1,40 @@
+{
+  "buildCommand": "node scripts/build-web.js",
+  "outputDirectory": "www",
+  "rewrites": [
+    {
+      "source": "/install/senrinomiti.apk",
+      "destination": "/download/senrinomiti.apk"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/version.json",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-store" }
+      ]
+    },
+    {
+      "source": "/sw.js",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-cache" }
+      ]
+    },
+    {
+      "source": "/download/(.*\\.apk)",
+      "headers": [
+        { "key": "Content-Type", "value": "application/vnd.android.package-archive" },
+        { "key": "Content-Disposition", "value": "attachment; filename=\"senrinomiti.apk\"" },
+        { "key": "Cache-Control", "value": "no-store" }
+      ]
+    },
+    {
+      "source": "/install/senrinomiti.apk",
+      "headers": [
+        { "key": "Content-Type", "value": "application/vnd.android.package-archive" },
+        { "key": "Content-Disposition", "value": "inline; filename=\"senrinomiti.apk\"" },
+        { "key": "Cache-Control", "value": "no-store" }
+      ]
+    }
+  ]
+}

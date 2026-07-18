@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">千里の道</string>
+    <string name="title_activity_main">千里の道も一歩から</string>
+    <string name="package_name">jp.senri.arukou</string>
+    <string name="custom_url_scheme">jp.senri.arukou</string>
+</resources>

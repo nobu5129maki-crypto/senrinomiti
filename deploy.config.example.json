@@ -1,0 +1,7 @@
+{
+  "productionUrl": "https://your-domain.example.com",
+  "appVersion": "1.0.0",
+  "androidVersionCode": 10000,
+  "androidApkUrl": "https://your-domain.example.com/download/senrinomiti.apk",
+  "installPagePath": "/install-android.html"
+}

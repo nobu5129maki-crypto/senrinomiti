@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#0c7a73">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="千里の道">
+  <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
+  <link rel="icon" href="./icons/icon-192.png" type="image/png">
+  <title>インストール — 千里の道も一歩から</title>
+  <script>
+    (function () {
+      var ua = navigator.userAgent || '';
+      var android = /Android/i.test(ua);
+      var ios = /iPad|iPhone|iPod/i.test(ua) && !window.MSStream;
+      document.documentElement.dataset.device = android ? 'android' : ios ? 'ios' : 'other';
+    })();
+  </script>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #eef7f4;
+      color: #1a3d38;
+      margin: 0;
+      min-height: 100dvh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px 16px 48px;
+    }
+    .shell { width: 100%; max-width: 360px; text-align: center; }
+    .app-icon { width: 72px; height: 72px; border-radius: 18px; margin: 0 auto 12px; display: block; }
+    h1 { font-size: 1.25rem; color: #065954; margin: 0 0 4px; }
+    .device { font-size: 0.9rem; color: #5f7a75; margin: 0 0 16px; }
+    .panel { display: none; }
+    html[data-device="android"] .panel-android,
+    html[data-device="ios"] .panel-ios,
+    html[data-device="other"] .panel-other { display: block; }
+    .calm {
+      background: #ecfdf5;
+      border: 1px solid #a7f3d0;
+      border-radius: 12px;
+      padding: 12px 14px;
+      margin-bottom: 12px;
+      font-size: 0.84rem;
+      line-height: 1.55;
+      color: #065954;
+      text-align: left;
+    }
+    .warn {
+      background: #fff7ed;
+      border: 1px solid #fdba74;
+      border-radius: 12px;
+      padding: 12px 14px;
+      margin-bottom: 12px;
+      font-size: 0.84rem;
+      line-height: 1.55;
+      color: #9a3412;
+      text-align: left;
+    }
+    .warn[hidden] { display: none; }
+    .steps {
+      list-style: none;
+      margin: 0 0 12px;
+      padding: 0;
+      text-align: left;
+      background: #fff;
+      border: 1px solid #cce8e2;
+      border-radius: 14px;
+      overflow: hidden;
+    }
+    .steps li {
+      padding: 12px 14px;
+      border-bottom: 1px solid #e8f3f0;
+      font-size: 0.88rem;
+      line-height: 1.45;
+    }
+    .steps li:last-child { border-bottom: none; }
+    .steps strong { color: #065954; }
+    .btn {
+      display: block;
+      width: 100%;
+      padding: 16px;
+      border: none;
+      border-radius: 14px;
+      background: #0c7a73;
+      color: #fff;
+      font-size: 1rem;
+      font-weight: 700;
+      text-decoration: none;
+      cursor: pointer;
+      text-align: center;
+    }
+    .btn.secondary {
+      background: #fff;
+      color: #0c7a73;
+      border: 2px solid #0c7a73;
+      margin-top: 8px;
+    }
+    .btn.apk-link {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      letter-spacing: 0.02em;
+    }
+    .btn-row { display: grid; gap: 8px; margin-top: 8px; }
+    .apk-note {
+      margin: 8px 0 0;
+      font-size: 0.78rem;
+      color: #64748b;
+      line-height: 1.5;
+      text-align: left;
+    }
+    .ios-steps {
+      list-style: none;
+      margin: 0 0 16px;
+      padding: 0;
+      text-align: left;
+      background: #fff;
+      border: 1px solid #cce8e2;
+      border-radius: 14px;
+      overflow: hidden;
+    }
+    .ios-steps li {
+      padding: 14px 16px;
+      border-bottom: 1px solid #e8f3f0;
+      font-size: 0.95rem;
+      line-height: 1.45;
+    }
+    .ios-steps li:last-child { border-bottom: none; }
+    .ios-steps strong { color: #065954; }
+    .split { display: grid; gap: 10px; }
+    .hint { margin-top: 10px; font-size: 0.8rem; color: #64748b; line-height: 1.55; min-height: 1.2em; text-align: left; }
+    .hint a { color: #0c7a73; font-weight: 700; word-break: break-all; }
+    details { margin-top: 12px; text-align: left; }
+    summary { cursor: pointer; color: #0c7a73; font-size: 0.84rem; font-weight: 700; }
+    .help { margin-top: 8px; font-size: 0.8rem; color: #64748b; line-height: 1.55; }
+    .manual {
+      margin-top: 10px;
+      padding: 12px;
+      background: #f8fafc;
+      border-radius: 12px;
+      border: 1px solid #e2e8f0;
+      font-size: 0.8rem;
+      color: #475569;
+      line-height: 1.55;
+      text-align: left;
+    }
+    .manual strong { color: #0f766e; }
+    .step-link {
+      color: #0c7a73;
+      font-weight: 700;
+      text-decoration: underline;
+      cursor: pointer;
+    }
+    .protect-guide {
+      margin: 0 0 12px;
+      padding: 14px;
+      background: #fffbeb;
+      border: 1px solid #fcd34d;
+      border-radius: 14px;
+      text-align: left;
+    }
+    .protect-guide h2 {
+      margin: 0 0 8px;
+      font-size: 0.95rem;
+      color: #92400e;
+    }
+    .protect-guide p {
+      margin: 0 0 10px;
+      font-size: 0.82rem;
+      line-height: 1.55;
+      color: #78350f;
+    }
+    .protect-mock {
+      background: #fff;
+      border: 1px solid #e5e7eb;
+      border-radius: 12px;
+      padding: 14px 12px 12px;
+      text-align: center;
+    }
+    .protect-mock .title {
+      margin: 0 0 6px;
+      font-size: 0.8rem;
+      font-weight: 800;
+      color: #111827;
+      line-height: 1.35;
+    }
+    .protect-mock .fake-detail {
+      display: inline-block;
+      margin: 8px 0 10px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: #ecfdf5;
+      border: 2px solid #0c7a73;
+      color: #0c7a73;
+      font-size: 0.78rem;
+      font-weight: 800;
+    }
+    .protect-mock .fake-ok {
+      display: block;
+      width: 100%;
+      padding: 12px;
+      border-radius: 10px;
+      background: #e5e7eb;
+      color: #6b7280;
+      font-size: 0.9rem;
+      font-weight: 700;
+      text-decoration: line-through;
+    }
+    .protect-mock .caption {
+      margin: 8px 0 0;
+      font-size: 0.75rem;
+      line-height: 1.45;
+      color: #64748b;
+      text-align: left;
+    }
+    .protect-mock .caption strong.do { color: #0c7a73; }
+    .protect-mock .caption strong.dont { color: #b91c1c; }
+    .install-red {
+      color: #dc2626;
+      font-weight: 800;
+    }
+    .legal { margin-top: 18px; font-size: 0.75rem; color: #94a3b8; }
+    .legal a { color: #0c7a73; text-decoration: none; }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <img class="app-icon" src="./icons/icon-192.png" width="72" height="72" alt="">
+    <h1>千里の道も一歩から</h1>
+
+    <section class="panel panel-android">
+      <p class="device">Android</p>
+
+      <div class="warn" id="inapp-warn" hidden>
+        note などのアプリ内ブラウザではインストールできません。<br>
+        下の <strong>Chrome で開く</strong> か、右上メニュー → <strong>Chrome で開く</strong> を選んでください。
+      </div>
+
+      <div class="btn-row">
+        <a class="btn secondary" id="open-chrome"
+           href="intent://senrinomiti.vercel.app/install.html#Intent;scheme=https;package=com.android.chrome;action=android.intent.action.VIEW;end">Chrome で開く</a>
+        <button type="button" class="btn secondary" id="copy-page">このページのリンクをコピー</button>
+      </div>
+
+      <div class="calm" style="margin-top:12px">
+        初回だけ Google の確認画面が出ますが、<strong>異常ではありません</strong>。<br>
+        <strong>「再ダウンロード」は使わず</strong>、下の <strong>senrinomiti.apk</strong> をタップしてください。
+      </div>
+
+      <div class="protect-guide">
+        <h2>「デバイスを保護するため…」と出たら</h2>
+        <p>
+          これは <strong>Android（Google）の画面</strong>です。ボタンの大きさや OK の有無は、このアプリ側では変更できません。<br>
+          大きい <strong>OK は「やめる」</strong>なので押さないでください。
+        </p>
+        <div class="protect-mock" aria-hidden="true">
+          <p class="title">デバイスを保護するため<br>アプリをブロックしました</p>
+          <span class="fake-detail">← ここを押す：詳細 → <span class="install-red">インストールする</span></span>
+          <span class="fake-ok">OK（押さない）</span>
+          <p class="caption">
+            <strong class="do">正しい操作:</strong> 小さい文字の <strong class="do">詳細</strong> → <span class="install-red">インストールする</span><br>
+            <strong class="dont">間違った操作:</strong> 大きい <strong class="dont">OK</strong>（インストールがキャンセルされます）
+          </p>
+        </div>
+      </div>
+
+      <ol class="steps">
+        <li>① <a class="step-link" id="open-permission"
+             href="intent:#Intent;action=android.settings.MANAGE_UNKNOWN_APP_SOURCES;data=package:com.android.chrome;end">インストール許可</a>（初回のみ）</li>
+        <li>② <strong>senrinomiti.apk</strong> をタップ</li>
+        <li>③ 保護画面が出たら <strong>詳細</strong> → <span class="install-red">インストールする</span>（大きい OK は押さない）</li>
+      </ol>
+
+      <a class="btn apk-link" id="android-download" href="https://senrinomiti.vercel.app/download/senrinomiti.apk">senrinomiti.apk</a>
+      <p class="apk-note">
+        ※ Chrome が「もう一度ダウンロードしますか？」と出たら、<strong>再ダウンロードではなくキャンセル</strong>し、ダウンロード一覧や通知の <strong>senrinomiti.apk</strong> を開いてください。
+      </p>
+
+      <div class="btn-row">
+        <a class="btn secondary" id="open-uninstall"
+           href="intent:#Intent;action=android.settings.APPLICATION_DETAILS_SETTINGS;data=package:jp.senri.arukou;end">以前入れた版を削除</a>
+      </div>
+
+      <div class="manual" id="manual-help">
+        <strong>ボタンが反応しないとき（手動）</strong><br>
+        ・Chrome: 右上 ⋮ → 「Chrome で開く」またはリンクをコピーして Chrome に貼り付け<br>
+        ・削除: 設定 → アプリ → 千里の道も一歩から → アンインストール<br>
+        ・許可: 設定 → アプリ → Chrome → 不明なアプリのインストール → オン
+      </div>
+
+      <p class="hint" id="android-status" aria-live="polite"></p>
+    </section>
+
+    <section class="panel panel-ios">
+      <p class="device">iPhone</p>
+      <div id="ios-installed" hidden>
+        <a class="btn" href="./index.html">アプリを開く</a>
+      </div>
+      <div id="ios-flow">
+        <ol class="ios-steps">
+          <li>1. <strong>共有</strong> ⬆️ をタップ</li>
+          <li>2. <strong>ホーム画面に追加</strong></li>
+          <li>3. <strong>追加</strong> をタップ</li>
+        </ol>
+        <a class="btn secondary" id="open-safari" href="#" hidden>Safari で開く</a>
+      </div>
+      <details>
+        <summary>うまくいかない</summary>
+        <div class="help">LINE 等のアプリ内ブラウザでは不可。Safari でこのページを開いてください。</div>
+      </details>
+    </section>
+
+    <section class="panel panel-other">
+      <p class="device">お使いの端末を選んでください</p>
+      <div class="split">
+        <a class="btn" href="#" id="pick-android">Android</a>
+        <a class="btn secondary" href="#" id="pick-ios">iPhone</a>
+      </div>
+    </section>
+
+    <p class="legal"><a href="./terms.html">利用規約</a> · <a href="./privacy.html">プライバシー</a></p>
+  </main>
+
+  <script type="module">
+    import {
+      ANDROID_APK_URL,
+      ANDROID_PACKAGE_ID,
+      PRODUCTION_URL,
+    } from './js/distribution-config.js';
+    import {
+      appDetailsIntentCandidates,
+      bindIntentControl,
+      copyText,
+      detectBrowserPackage,
+      isAndroidInAppBrowser,
+      openInChromeCandidates,
+      unknownSourcesIntentCandidates,
+    } from './js/install-flow.js';
+
+    const downloadBtn = document.getElementById('android-download');
+    const androidStatus = document.getElementById('android-status');
+    const openChromeBtn = document.getElementById('open-chrome');
+    const copyPageBtn = document.getElementById('copy-page');
+    const permissionBtn = document.getElementById('open-permission');
+    const uninstallBtn = document.getElementById('open-uninstall');
+    const inappWarn = document.getElementById('inapp-warn');
+    const pageUrl = `${PRODUCTION_URL || location.origin}/install.html`;
+    const apkBase = ANDROID_APK_URL || `${PRODUCTION_URL || location.origin}/download/senrinomiti.apk`;
+    const apkUrl = apkBase.includes('?') ? `${apkBase}&t=${Date.now()}` : `${apkBase}?t=${Date.now()}`;
+    let androidBound = false;
+
+    function setStatus(html) {
+      if (androidStatus) androidStatus.innerHTML = html;
+    }
+
+    function bindAndroidInstall() {
+      if (androidBound) return;
+      androidBound = true;
+
+      if (downloadBtn) {
+        if (!apkBase) {
+          downloadBtn.removeAttribute('href');
+          downloadBtn.textContent = '準備中';
+        } else {
+          downloadBtn.href = apkUrl;
+          downloadBtn.rel = 'noopener';
+          downloadBtn.removeAttribute('download');
+          downloadBtn.textContent = 'senrinomiti.apk';
+        }
+      }
+
+      if (isAndroidInAppBrowser() && inappWarn) {
+        inappWarn.hidden = false;
+        setStatus('先に Chrome でこのページを開いてください。');
+      }
+
+      bindIntentControl(openChromeBtn, openInChromeCandidates(pageUrl), {
+        onFail: () => setStatus(`Chrome で次を開いてください:<br><a href="${pageUrl}">${pageUrl}</a>`)
+      });
+      openChromeBtn?.addEventListener('click', async () => {
+        const copied = await copyText(pageUrl);
+        setStatus(
+          copied
+            ? 'リンクをコピーしました。反応しない場合は Chrome を開き、アドレス欄に貼り付けてください。'
+            : `反応しない場合は Chrome で次を開いてください:<br><a href="${pageUrl}">${pageUrl}</a>`
+        );
+      });
+
+      copyPageBtn?.addEventListener('click', async () => {
+        const ok = await copyText(pageUrl);
+        setStatus(ok
+          ? 'コピーしました。Chrome のアドレス欄に貼り付けて開いてください。'
+          : `コピーできない場合は手動で開いてください:<br><a href="${pageUrl}">${pageUrl}</a>`);
+      });
+
+      bindIntentControl(
+        permissionBtn,
+        unknownSourcesIntentCandidates(detectBrowserPackage()),
+        { onFail: () => setStatus('設定 → アプリ → Chrome → 不明なアプリのインストール → オン') }
+      );
+      permissionBtn?.addEventListener('click', () => {
+        setStatus('設定が開かない場合: 設定 → アプリ → Chrome → 不明なアプリのインストール → オン');
+      });
+
+      bindIntentControl(
+        uninstallBtn,
+        appDetailsIntentCandidates(ANDROID_PACKAGE_ID || 'jp.senri.arukou'),
+        { onFail: () => setStatus('設定 → アプリ → 千里の道も一歩から → アンインストール') }
+      );
+      uninstallBtn?.addEventListener('click', () => {
+        setStatus('開かない場合: 設定 → アプリ → 千里の道も一歩から → アンインストール');
+      });
+    }
+
+    function setupAndroidPanel() {
+      if (document.documentElement.dataset.device !== 'android') return;
+      bindAndroidInstall();
+    }
+
+    document.getElementById('pick-android')?.addEventListener('click', (event) => {
+      event.preventDefault();
+      document.documentElement.dataset.device = 'android';
+      setupAndroidPanel();
+    });
+
+    document.getElementById('pick-ios')?.addEventListener('click', (event) => {
+      event.preventDefault();
+      document.documentElement.dataset.device = 'ios';
+      setupIos();
+    });
+
+    function setupIos() {
+      if (document.documentElement.dataset.device !== 'ios') return;
+      const standalone = window.matchMedia('(display-mode: standalone)').matches
+        || window.navigator.standalone === true;
+      if (standalone) {
+        document.getElementById('ios-flow').hidden = true;
+        document.getElementById('ios-installed').hidden = false;
+        return;
+      }
+      const ua = navigator.userAgent || '';
+      const isSafari = /Safari/i.test(ua) && !/CriOS|FxiOS|EdgiOS|Line|Instagram|FBAN|FBAV/i.test(ua);
+      if (!isSafari) {
+        const safariBtn = document.getElementById('open-safari');
+        safariBtn.hidden = false;
+        safariBtn.href = pageUrl;
+      }
+    }
+
+    setupAndroidPanel();
+    setupIos();
+  </script>
+</body>
+</html>

@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#0c7a73">
+  <meta name="description" content="歩数を距離に換算し、千里の道も一歩から仮想徒歩の旅を楽しむアプリ">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="千里の道">
+  <title>千里の道も一歩から</title>
+  <link rel="manifest" href="./manifest.json">
+  <link rel="icon" href="./icons/icon-192.png" type="image/png">
+  <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <link rel="stylesheet" href="./css/style.css">
+  <script src="./js/loader.js"></script>
+</head>
+<body>
+  <div id="app">
+    <!-- ヘッダー -->
+    <header class="header">
+      <div class="header-inner">
+        <h1 class="logo">
+          <img class="logo-mark" src="icons/icon-192.png" alt="" width="36" height="36">
+          <span class="logo-text">
+            <span class="logo-title">千里の道も一歩から</span>
+            <span class="logo-tagline">歩数で旅する</span>
+          </span>
+        </h1>
+        <nav class="nav-tabs" role="tablist" aria-label="画面切り替え">
+          <button type="button" class="nav-tab active" data-view="dashboard" role="tab" aria-selected="true" aria-controls="view-dashboard">旅の途中</button>
+          <button type="button" class="nav-tab" data-view="setup" role="tab" aria-selected="false" aria-controls="view-setup">目的地設定</button>
+          <button type="button" class="nav-tab" data-view="collection" role="tab" aria-selected="false" aria-controls="view-collection">旅の足跡</button>
+        </nav>
+      </div>
+    </header>
+
+    <main class="main">
+      <!-- ダッシュボード -->
+      <section id="view-dashboard" class="view active">
+        <div class="mode-badge" id="mode-badge">日本版</div>
+
+        <div class="destination-card" id="destination-card">
+          <div class="destination-info">
+            <p class="route-label" id="route-label">目的地を設定してください</p>
+            <p class="route-distance" id="route-distance"></p>
+          </div>
+        </div>
+
+        <!-- 地図 -->
+        <div class="map-container">
+          <div id="map"></div>
+          <div class="map-overlay" id="map-placeholder">
+            <p>🗺️ 目的地を設定すると地図が表示されます</p>
+          </div>
+        </div>
+
+        <!-- 進捗 -->
+        <div class="progress-section" id="progress-section" hidden>
+          <div class="stats-grid">
+            <div class="stat-card">
+              <span class="stat-label">本日の歩数</span>
+              <span class="stat-value" id="today-steps">0</span>
+            </div>
+            <div class="stat-card">
+              <span class="stat-label">累計歩数</span>
+              <span class="stat-value" id="total-steps">0</span>
+            </div>
+            <div class="stat-card highlight">
+              <span class="stat-label">残り距離</span>
+              <span class="stat-value" id="remaining-km">—</span>
+            </div>
+            <div class="stat-card">
+              <span class="stat-label">歩いた距離</span>
+              <span class="stat-value" id="walked-km">0 km</span>
+            </div>
+          </div>
+
+          <div class="progress-bar-wrap">
+            <div class="progress-bar-header">
+              <span>進捗</span>
+              <span id="progress-percent">0%</span>
+            </div>
+            <div class="progress-bar">
+              <div class="progress-fill" id="progress-fill"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 万歩計 -->
+        <div class="pedometer-section" id="pedometer-section">
+          <div class="pedometer-header">
+            <h2 class="section-title">万歩計</h2>
+            <span class="pedometer-status" id="pedometer-status">停止中</span>
+          </div>
+          <div class="pedometer-pwa-warning" id="pedometer-pwa-warning" hidden>
+            <p id="pedometer-pwa-warning-text"></p>
+            <a class="pedometer-apk-link" id="pedometer-apk-link" href="/install-android.html" hidden>Android版をインストール（常時記録）</a>
+          </div>
+          <p class="hint pedometer-hint" id="pedometer-hint">歩数は自動で記録され、旅に反映されます。</p>
+          <div class="pedometer-permission-banner" id="pedometer-permission-banner" hidden>
+            <p id="pedometer-permission-text">歩数を記録するために、許可が必要です。</p>
+            <button class="btn btn-secondary btn-block" id="btn-pedometer-permissions" type="button">許可する</button>
+          </div>
+          <p class="hint pedometer-bg-note" id="pedometer-bg-note" hidden></p>
+          <div class="pedometer-stats">
+            <div class="pedometer-stat">
+              <span class="stat-label">旅に反映（本日）</span>
+              <span class="stat-value" id="pedometer-today">0</span>
+            </div>
+            <div class="pedometer-stat">
+              <span class="stat-label">端末の歩数（本日）</span>
+              <span class="stat-value" id="pedometer-session">0</span>
+            </div>
+          </div>
+          <button class="btn btn-primary btn-block" id="btn-pedometer-toggle">計測を開始</button>
+          <button class="btn btn-secondary btn-block" id="btn-battery-opt" type="button" hidden>歩数が止まる場合はこちら</button>
+          <button class="btn btn-secondary btn-block" id="btn-google-fit-connect" type="button" hidden>Google アカウントと連携</button>
+          <details class="pedometer-external">
+            <summary>物理万歩計から取り込む</summary>
+            <p class="hint">お持ちの万歩計の表示値を入力すると、差分を自動で反映します。</p>
+            <div class="steps-input-row">
+              <input type="number" id="external-pedometer-input" min="0" placeholder="万歩計の表示歩数" inputmode="numeric">
+              <button class="btn btn-secondary" id="btn-sync-external">取り込み</button>
+            </div>
+          </details>
+        </div>
+
+        <!-- 歩数入力（手動） -->
+        <div class="steps-input-section">
+          <h2 class="section-title">手動で歩数を記録</h2>
+          <div class="steps-input-row">
+            <input type="number" id="steps-input" min="0" max="999999" placeholder="歩数を入力" inputmode="numeric">
+            <button class="btn btn-primary" id="btn-add-steps">追加</button>
+          </div>
+          <button class="btn btn-secondary btn-block" id="btn-reset-today">本日の歩数をリセット</button>
+        </div>
+
+        <!-- シェア -->
+        <div class="share-section" id="share-section" hidden>
+          <button class="btn btn-outline btn-block" id="btn-share">進捗をシェア</button>
+        </div>
+      </section>
+
+      <!-- 目的地設定 -->
+      <section id="view-setup" class="view">
+        <h2 class="section-title">モード選択</h2>
+        <div class="mode-toggle">
+          <button type="button" class="mode-btn active" data-mode="japan" onclick="window.__senriTriggerMode('japan')">🇯🇵 日本版</button>
+          <button type="button" class="mode-btn" data-mode="world" onclick="window.__senriTriggerMode('world')">🌍 世界版</button>
+        </div>
+
+        <div class="custom-form">
+          <div class="location-field">
+            <label class="field-label" for="custom-start">起点</label>
+            <div class="location-input-row">
+              <input type="text" id="custom-start" placeholder="例：東京都港区〇ー〇〇－〇" autocomplete="off">
+              <button type="button" class="btn btn-secondary btn-icon" id="btn-start-gps" title="現在地">📍</button>
+            </div>
+            <ul class="suggestions" id="start-suggestions" hidden></ul>
+            <p class="selected-place" id="start-selected" hidden></p>
+          </div>
+          <div class="location-field">
+            <label class="field-label" for="custom-end">目的地</label>
+            <div class="location-input-row">
+              <input type="text" id="custom-end" placeholder="例：金閣寺、東京ディズニーランド" autocomplete="off">
+              <button type="button" class="btn btn-secondary btn-icon" id="btn-end-gps" title="現在地">📍</button>
+            </div>
+            <ul class="suggestions" id="end-suggestions" hidden></ul>
+            <p class="selected-place" id="end-selected" hidden></p>
+          </div>
+          <button type="button" class="btn btn-primary btn-block" id="btn-custom-route" onclick="window.__senriTriggerCustomRoute()">ルートを設定</button>
+        </div>
+
+        <h2 class="section-title">設定</h2>
+        <div class="settings-form">
+          <label class="setting-row">
+            <span>1歩あたりの距離（cm）</span>
+            <input type="number" id="stride-input" min="50" max="100" value="70">
+          </label>
+        </div>
+
+        <h2 class="section-title">セーブデータ</h2>
+        <p class="hint save-slots-hint">3つまで保存できます。別の旅を試すときに便利です。</p>
+        <div class="save-slots" id="save-slots"></div>
+      </section>
+
+      <!-- コレクション -->
+      <section id="view-collection" class="view">
+        <h2 class="section-title">旅の足跡</h2>
+        <p class="hint">クリアした目的地の記録</p>
+        <div class="collection-list" id="collection-list">
+          <p class="empty-state">まだ制覇した目的地はありません</p>
+        </div>
+      </section>
+    </main>
+
+    <!-- チェックポイント到達 -->
+    <div class="checkpoint-overlay" id="checkpoint-overlay" hidden>
+      <div class="checkpoint-card">
+        <button type="button" class="checkpoint-close" id="checkpoint-close" aria-label="閉じる">×</button>
+        <div class="checkpoint-hero">
+          <img id="checkpoint-spot-img" src="" alt="" referrerpolicy="no-referrer">
+          <span class="checkpoint-spot-badge" id="checkpoint-spot-label"></span>
+        </div>
+        <div class="checkpoint-body">
+          <p class="checkpoint-arrival">📍 チェックポイント到達</p>
+          <h3 class="checkpoint-title" id="checkpoint-title"></h3>
+          <p class="checkpoint-desc" id="checkpoint-desc"></p>
+          <div class="checkpoint-specialty">
+            <img id="checkpoint-specialty-img" src="" alt="" referrerpolicy="no-referrer">
+            <div class="checkpoint-specialty-text">
+              <span class="specialty-tag">名物・特産</span>
+              <strong id="checkpoint-specialty-name"></strong>
+            </div>
+          </div>
+          <button type="button" class="btn btn-primary btn-block" id="checkpoint-ok">続ける</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ゴール達成モーダル -->
+    <div class="modal-overlay" id="goal-modal" hidden>
+      <div class="modal goal-modal">
+        <div class="goal-image-wrap">
+          <img id="goal-image" src="" alt="" referrerpolicy="no-referrer">
+          <span class="checkpoint-spot-badge" id="goal-spot-label"></span>
+        </div>
+        <div class="goal-content">
+          <p class="checkpoint-arrival goal-arrival" id="goal-arrival">📍 名所到着</p>
+          <h2 class="goal-title" id="goal-title">🎉 ゴール達成！</h2>
+          <p class="goal-desc" id="goal-desc"></p>
+          <p class="goal-message" id="goal-message"></p>
+          <div class="checkpoint-specialty goal-specialty">
+            <img id="goal-specialty-img" src="" alt="" referrerpolicy="no-referrer">
+            <div class="checkpoint-specialty-text">
+              <span class="specialty-tag">名物・特産</span>
+              <strong id="goal-specialty-name"></strong>
+            </div>
+          </div>
+          <p class="goal-stats" id="goal-stats"></p>
+          <button class="btn btn-primary btn-block" id="btn-share-goal">達成をシェア</button>
+          <button class="btn btn-secondary btn-block" id="btn-new-journey">新しい旅を始める</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- PWA インストール -->
+    <aside class="install-banner" id="install-banner" hidden>
+      <div class="install-banner-inner">
+        <img class="install-icon" src="icons/icon-192.png" alt="" width="44" height="44">
+        <div class="install-banner-text">
+          <strong id="install-title">アプリをインストール</strong>
+          <span id="install-desc">ホーム画面からすぐに旅を再開できます</span>
+        </div>
+        <button type="button" class="btn btn-install" id="btn-install">追加</button>
+        <button type="button" class="install-dismiss" id="install-dismiss" aria-label="閉じる">×</button>
+      </div>
+    </aside>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
+  <script src="./js/bootstrap.js"></script>
+  <script type="module">
+    var appUrl = new URL('js/app.js', window.__senriBase || document.baseURI).href;
+    import(appUrl).catch(function (err) {
+      window.__senriLastError = err && err.message ? err.message : String(err);
+      if (window.__senriShowLoadError) window.__senriShowLoadError();
+    });
+  </script>
+</body>
+</html>

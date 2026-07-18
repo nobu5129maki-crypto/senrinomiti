@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#0c7a73">
+  <title>Android版インストール — 千里の道も一歩から</title>
+  <link rel="icon" href="./icons/icon-192.png" type="image/png">
+  <link rel="stylesheet" href="./css/style.css">
+  <style>
+    .install-page { max-width: 520px; margin: 0 auto; padding: 24px 16px 48px; }
+    .install-page h1 { font-size: 1.35rem; color: #065954; margin: 0 0 8px; }
+    .install-page .lead { color: #5f7a75; line-height: 1.7; margin-bottom: 24px; }
+    .install-card { background: #fff; border: 1px solid #cce8e2; border-radius: 16px; padding: 20px; margin-bottom: 16px; }
+    .install-card h2 { font-size: 1rem; color: #065954; margin: 0 0 12px; }
+    .install-card ol { margin: 0; padding-left: 1.2rem; line-height: 1.8; color: #1a3d38; }
+    .install-card li { margin-bottom: 8px; }
+    .install-download { display: block; width: 100%; padding: 16px; border: none; border-radius: 14px; background: #0c7a73; color: #fff; font-size: 1.05rem; font-weight: 700; text-align: center; text-decoration: none; margin-bottom: 12px; box-sizing: border-box; }
+    .install-download:hover { background: #065954; }
+    .install-note { font-size: 0.88rem; color: #5f7a75; line-height: 1.6; }
+    .install-back { display: inline-block; margin-top: 16px; color: #0c7a73; text-decoration: none; font-weight: 600; }
+    .install-badge { display: inline-block; background: #ecfdf5; color: #065954; font-size: 0.8rem; font-weight: 700; padding: 4px 10px; border-radius: 999px; margin-bottom: 12px; }
+    .install-legal { font-size: 0.82rem; margin-top: 24px; color: #5f7a75; }
+    .install-legal a { color: #0c7a73; }
+  </style>
+</head>
+<body>
+  <div class="install-page">
+    <span class="install-badge">有料 note ご購入者向け</span>
+    <h1>Android版のインストール</h1>
+    <p class="lead">Android版（ネイティブアプリ）をインストールすると、<strong>画面を消していても歩数が自動記録</strong>されます。Play ストアは不要です。</p>
+
+    <div class="install-card">
+      <a class="install-download" id="apk-download" href="#">Android版をダウンロード</a>
+      <p class="install-note">※ 初回のみ「提供元不明のアプリ」の許可が必要です（下記手順参照）</p>
+    </div>
+
+    <div class="install-card">
+      <h2>インストール手順</h2>
+      <ol>
+        <li>上のボタンから <strong>APK ファイル</strong>をダウンロード</li>
+        <li>ダウンロード完了後、通知または「ファイル」アプリから APK を開く</li>
+        <li>「提供元不明のアプリ」許可を求められたら <strong>許可</strong> する（設定画面が開く場合あり）</li>
+        <li>「インストール」をタップ</li>
+        <li>インストール後、アプリを開き <strong>身体活動</strong> と <strong>通知</strong> を許可</li>
+        <li>「はじめる」をタップして計測を開始</li>
+        <li>通知バーに「万歩計 計測中」と表示されれば、常時記録が有効です</li>
+      </ol>
+    </div>
+
+    <div class="install-card">
+      <h2>よくある質問</h2>
+      <p class="install-note"><strong>ブラウザ版との違い</strong><br>Chrome やホーム画面追加版は、画面を開いている間だけ記録します。常時記録には Android版（APK）が必要です。</p>
+      <p class="install-note" style="margin-top:12px"><strong>アップデート</strong><br>新機能を使うときは、同じページから最新版 APK をダウンロードして上書きインストールしてください。</p>
+      <p class="install-note" style="margin-top:12px"><strong>歩数が記録されない場合</strong><br>設定 → アプリ → 千里の道も一歩から → 身体活動・通知をオンにしてください。バッテリー最適化をオフにすると安定します。</p>
+      <p class="install-note" style="margin-top:12px"><strong>iPhone</strong><br><a href="./install-ios.html">iPhone版インストールページ</a> から、Safari で「ホーム画面に追加」できます（App Store 不要・約30秒）。</p>
+    </div>
+
+    <p class="install-legal">
+      <a href="./terms.html">利用規約</a> · <a href="./privacy.html">プライバシーポリシー</a>
+    </p>
+  </div>
+  <script type="module">
+    import { ANDROID_APK_URL } from './js/distribution-config.js';
+    const link = document.getElementById('apk-download');
+    if (link && ANDROID_APK_URL) {
+      link.href = ANDROID_APK_URL;
+      link.setAttribute('download', '');
+    } else if (link) {
+      link.textContent = 'APK 準備中（販売者へお問い合わせ）';
+      link.style.background = '#5f7a75';
+      link.removeAttribute('href');
+    }
+  </script>
+</body>
+</html>

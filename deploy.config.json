@@ -1,0 +1,13 @@
+{
+  "productionUrl": "https://senrinomiti.vercel.app",
+  "appVersion": "1.0.26",
+  "androidVersionCode": 10026,
+  "androidPackageId": "jp.senri.arukou",
+  "distributionChannel": "note",
+  "androidApkUrl": "https://senrinomiti.vercel.app/download/senrinomiti.apk",
+  "androidApkInstallUrl": "https://senrinomiti.vercel.app/install/senrinomiti.apk",
+  "installPagePath": "/install.html",
+  "iosInstallPagePath": "/install-ios.html",
+  "installHubPath": "/install.html",
+  "iosTestFlightUrl": ""
+}
