@@ -51,14 +51,14 @@ export const FAMOUS_SPOT_ENTRIES = [
   { id: 'manzamo', name: '万座毛', lat: 26.5072, lng: 127.8511, mode: 'japan', img: 'guam', aliases: ['恩納村', 'まんざもう', '沖縄'] },
 
   // ── 海外：ヨーロッパ ──
-  { id: 'louvre', name: 'ルーヴル美術館', lat: 48.8606, lng: 2.3376, mode: 'world', img: 'eiffelTower', aliases: ['louvre', 'ルーブル', 'パリ'] },
+  { id: 'louvre', name: 'ルーヴル美術館', lat: 48.8606, lng: 2.3376, mode: 'world', img: 'louvre', aliases: ['louvre', 'ルーブル', 'パリ'] },
   { id: 'notre-dame', name: 'ノートルダム大聖堂', lat: 48.8530, lng: 2.3499, mode: 'world', img: 'eiffelTower', aliases: ['notre dame', 'ノートルダム', 'パリ'] },
   { id: 'arc-de-triomphe', name: '凱旋門', lat: 48.8738, lng: 2.2950, mode: 'world', img: 'eiffelTower', aliases: ['arc de triomphe', 'シャンゼリゼ', 'パリ'] },
   { id: 'versailles', name: 'ベルサイユ宮殿', lat: 48.8049, lng: 2.1204, mode: 'world', img: 'eiffelTower', aliases: ['versailles', 'ヴェルサイユ', 'フランス'] },
   { id: 'tower-bridge', name: 'タワーブリッジ', lat: 51.5055, lng: -0.0754, mode: 'world', img: 'palaceOfWestminster', aliases: ['tower bridge'] },
   { id: 'buckingham-palace', name: 'バッキンガム宮殿', lat: 51.5014, lng: -0.1419, mode: 'world', img: 'palaceOfWestminster', aliases: ['buckingham', 'ロンドン'] },
   { id: 'tower-of-london', name: 'ロンドン塔', lat: 51.5081, lng: -0.0760, mode: 'world', img: 'palaceOfWestminster', aliases: ['tower of london'] },
-  { id: 'leaning-tower-pisa', name: 'ピサの斜塔', lat: 43.7230, lng: 10.3966, mode: 'world', img: 'colosseum', aliases: ['pisa', 'ピサ', 'イタリア'] },
+  { id: 'leaning-tower-pisa', name: 'ピサの斜塔', lat: 43.7230, lng: 10.3966, mode: 'world', img: 'leaningTowerPisa', aliases: ['pisa', 'ピサ', 'イタリア'] },
   { id: 'vatican', name: 'バチカン', lat: 41.9022, lng: 12.4539, mode: 'world', img: 'colosseum', aliases: ['vatican', 'サン・ピエトロ大聖堂', 'ローマ'] },
   { id: 'trevi-fountain', name: 'トレヴィの泉', lat: 41.9009, lng: 12.4833, mode: 'world', img: 'colosseum', aliases: ['trevi fountain', 'ローマ'] },
   { id: 'acropolis', name: 'アクロポリス', lat: 37.9715, lng: 23.7267, mode: 'world', img: 'colosseum', aliases: ['acropolis', 'パルテノン', 'アテネ', 'ギリシャ'] },
@@ -68,23 +68,23 @@ export const FAMOUS_SPOT_ENTRIES = [
   // ── 海外：北米 ──
   { id: 'times-square', name: 'タイムズスクエア', lat: 40.7580, lng: -73.9855, mode: 'world', img: 'statueOfLiberty', aliases: ['times square', 'ニューヨーク', 'NY'] },
   { id: 'empire-state', name: 'エンパイアステートビル', lat: 40.7484, lng: -73.9857, mode: 'world', img: 'statueOfLiberty', aliases: ['empire state', 'ニューヨーク'] },
-  { id: 'white-house', name: 'ホワイトハウス', lat: 38.8977, lng: -77.0365, mode: 'world', img: 'statueOfLiberty', aliases: ['white house', 'ワシントンDC'] },
+  { id: 'white-house', name: 'ホワイトハウス', lat: 38.8977, lng: -77.0365, mode: 'world', img: 'whiteHouse', aliases: ['white house', 'ワシントンDC'] },
   { id: 'las-vegas-strip', name: 'ラスベガス', lat: 36.1147, lng: -115.1728, mode: 'world', img: 'hollywoodSign', aliases: ['las vegas', 'ラスベガスストリップ', 'ベガス'] },
   { id: 'disney-world', name: 'ウォルト・ディズニー・ワールド', lat: 28.3852, lng: -81.5639, mode: 'world', img: 'hollywoodSign', aliases: ['disney world', 'ディズニーワールド', 'フロリダ'] },
-  { id: 'cn-tower', name: 'CNタワー', lat: 43.6426, lng: -79.3871, mode: 'world', img: 'statueOfLiberty', aliases: ['cn tower', 'トロント', 'カナダ'] },
+  { id: 'cn-tower', name: 'シーエヌタワー', lat: 43.6426, lng: -79.3871, mode: 'world', img: 'cnTower', aliases: ['CNタワー', 'cn tower', 'トロント', 'カナダ'] },
   { id: 'mount-rushmore', name: 'ラシュモア山', lat: 43.8791, lng: -103.4591, mode: 'world', img: 'hollywoodSign', aliases: ['mount rushmore', 'ラシュモア', 'アメリカ'] },
   { id: 'space-needle', name: 'スペースニードル', lat: 47.6205, lng: -122.3493, mode: 'world', img: 'goldenGate', aliases: ['space needle', 'シアトル'] },
   { id: 'yosemite', name: 'ヨセミテ国立公園', lat: 37.8651, lng: -119.5383, mode: 'world', img: 'hollywoodSign', aliases: ['yosemite', 'ヨセミテ', 'アメリカ'] },
-  { id: 'miami-beach', name: 'マイアミビーチ', lat: 25.7907, lng: -80.1300, mode: 'world', img: 'statueOfLiberty', aliases: ['miami', 'マイアミ', 'サウスビーチ'] },
+  { id: 'miami-beach', name: 'マイアミビーチ', lat: 25.7907, lng: -80.1300, mode: 'world', img: 'waikiki', aliases: ['miami', 'マイアミ', 'サウスビーチ'] },
 
   // ── 海外：アジア・中東・オセアニア ──
   { id: 'marina-bay-sands', name: 'マリーナベイ・サンズ', lat: 1.2834, lng: 103.8607, mode: 'world', img: 'merlion', aliases: ['marina bay sands', 'シンガポール', 'MBS'] },
   { id: 'sentosa', name: 'セントーサ島', lat: 1.2494, lng: 103.8303, mode: 'world', img: 'merlion', aliases: ['sentosa', 'シンガポール'] },
-  { id: 'forbidden-city', name: '紫禁城', lat: 39.9163, lng: 116.3972, mode: 'world', img: 'greatWall', aliases: ['forbidden city', '北京', '故宮'] },
+  { id: 'forbidden-city', name: '故宮', lat: 39.9163, lng: 116.3972, mode: 'world', img: 'greatWall', aliases: ['紫禁城', 'forbidden city', '北京', '故宮博物院'] },
   { id: 'terracotta-army', name: '兵馬俑', lat: 34.3844, lng: 109.2785, mode: 'world', img: 'greatWall', aliases: ['terracotta army', '西安', '始皇帝'] },
   { id: 'petronas-towers', name: 'ペトロナスツインタワー', lat: 3.1579, lng: 101.7116, mode: 'world', img: 'merlion', aliases: ['petronas', 'クアラルンプール', 'KL'] },
   { id: 'sydney-harbour-bridge', name: 'シドニーハーバーブリッジ', lat: -33.8523, lng: 151.2108, mode: 'world', img: 'sydneyOpera', aliases: ['harbour bridge', 'シドニー', 'ハーバーブリッジ'] },
   { id: 'maldives', name: 'モルディブ', lat: 3.2028, lng: 73.2207, mode: 'world', img: 'bali', aliases: ['maldives', 'モルディブ諸島', 'リゾート'] },
-  { id: 'cancun', name: 'カンクン', lat: 21.1619, lng: -86.8515, mode: 'world', img: 'hollywoodSign', aliases: ['cancun', 'カンクン', 'メキシコ'] },
+  { id: 'cancun', name: 'カンクン', lat: 21.1619, lng: -86.8515, mode: 'world', img: 'chichenItza', aliases: ['cancun', 'カンクン', 'メキシコ'] },
   { id: 'victoria-falls', name: 'ビクトリアの滝', lat: -17.9243, lng: 25.8572, mode: 'world', img: 'tableMountain', aliases: ['victoria falls', 'ザンビア', 'ジンバブエ'] }
 ];

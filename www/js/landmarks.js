@@ -300,7 +300,7 @@ export const LANDMARKS = {
     specialtyImage: 'https://images.unsplash.com/photo-1579584425555-c3ce17fd4351?w=600&q=80'
   },
   seoul: {
-    spotLabel: 'Nソウルタワー',
+    spotLabel: '南山タワー',
     spotImage: SPOT_IMAGES.seoulTower,
     specialtyName: '韓国チキン',
     specialtyImage: 'https://images.unsplash.com/photo-1562967914-608f82629710?w=600&q=80'
@@ -312,7 +312,7 @@ export const LANDMARKS = {
     specialtyImage: 'https://images.unsplash.com/photo-1529692236671-f1f6cf9683ba?w=600&q=80'
   },
   shanghai: {
-    spotLabel: '外滩のスカイライン',
+    spotLabel: '外灘のスカイライン',
     spotImage: SPOT_IMAGES.shanghaiBund,
     specialtyName: '小籠包',
     specialtyImage: 'https://images.unsplash.com/photo-1563245372-28a3f4ccb4b5?w=600&q=80'

@@ -1,7 +1,12 @@
 /** 国土地理院・OpenStreetMap による住所・地名・名所検索 */
 
-import { LOCAL_SPOT_MIN_SCORE, searchSpots, spotToPlace } from './spots.js';
+import { LOCAL_SPOT_MIN_SCORE, searchSpots, spotToPlace, findNearestSpot, matchSpot } from './spots.js';
 import { buildAreaSearchQueries, looksLikeJapaneseArea, searchJapaneseAreaCandidates } from './ja-areas.js';
+import {
+  hasNonJapaneseLocalScript,
+  looksLikeChineseOnlyName,
+  toJapaneseWorldPlaceName
+} from './world-place-ja.js';
 
 const GSI_ADDRESS_URL = 'https://msearch.gsi.go.jp/address-search/AddressSearch';
 const NOMINATIM_URL = 'https://nominatim.openstreetmap.org/search';
@@ -59,7 +64,9 @@ function buildSearchQueries(q, mode) {
       queries.push(`${q.trim()} 日本 観光`);
     }
   } else if (!looksLikeAddress(normalized)) {
-    queries.push(`${q.trim()} tourist attraction`);
+    // 世界版も日本語クエリを優先（現地語結果を減らす）
+    queries.push(`${q.trim()} 観光`);
+    queries.push(`${q.trim()} 名所`);
     queries.push(`${q.trim()} landmark`);
   }
 
@@ -140,11 +147,12 @@ export async function searchPlaces(query, mode = 'japan') {
 
   const merged = [...local];
   for (const place of remote) {
+    const localized = mode === 'world' ? localizeWorldPlace(place) : place;
     const dup = merged.some(
-      (p) => p.name === place.name ||
-        (Math.abs(p.lat - place.lat) < 0.001 && Math.abs(p.lng - place.lng) < 0.001)
+      (p) => p.name === localized.name ||
+        (Math.abs(p.lat - localized.lat) < 0.001 && Math.abs(p.lng - localized.lng) < 0.001)
     );
-    if (!dup) merged.push(place);
+    if (!dup) merged.push(localized);
   }
 
   return merged.slice(0, 15);
@@ -157,6 +165,7 @@ async function fetchNominatimOnce(q, mode) {
     limit: '15',
     'accept-language': 'ja',
     addressdetails: '1',
+    namedetails: '1',
     dedupe: '1'
   });
 
@@ -170,7 +179,7 @@ async function fetchNominatimOnce(q, mode) {
   if (!res.ok) return [];
 
   const data = await res.json();
-  return data.map((item, i) => mapNominatimItem(item, i));
+  return data.map((item, i) => mapNominatimItem(item, i, mode));
 }
 
 async function fetchGsiOnce(q) {
@@ -268,30 +277,34 @@ function scoreNominatimPlace(place, q, index) {
   return score;
 }
 
-function mapNominatimItem(item, i) {
+function mapNominatimItem(item, i, mode = 'japan') {
   const landmarkClass = item.class || '';
+  const shortName = formatShortName(item);
   const isLandmark = LANDMARK_CLASSES.has(landmarkClass) &&
-    !looksLikeAddress(item.name || '') &&
+    !looksLikeAddress(shortName) &&
     !item.address?.house_number;
 
-  return {
+  const place = {
     id: `${item.place_id}-${i}`,
-    name: formatShortName(item),
-    displayName: formatDisplayName(item),
+    name: shortName,
+    displayName: formatDisplayName(item, shortName),
     lat: parseFloat(item.lat),
     lng: parseFloat(item.lon),
     isLandmark,
-    isAddress: !isLandmark && (looksLikeAddress(formatShortName(item)) || Boolean(item.address?.house_number))
+    isAddress: !isLandmark && (looksLikeAddress(shortName) || Boolean(item.address?.house_number))
   };
+
+  return mode === 'world' ? localizeWorldPlace(place) : place;
 }
 
-function formatDisplayName(item) {
-  if (item.name && item.name.trim().length >= 2) {
+function formatDisplayName(item, preferredName = '') {
+  const name = (preferredName || pickPreferredName(item) || item.name || '').trim();
+  if (name.length >= 2) {
     const loc = item.address?.country_code === 'jp'
       ? formatJapaneseAddress(item.address)
-      : item.display_name.split(',').slice(0, 2).join(', ').trim();
-    if (loc && !loc.includes(item.name)) return `${item.name}（${loc}）`;
-    return item.name.trim();
+      : formatWorldLocationHint(item.address, item.display_name);
+    if (loc && !loc.includes(name)) return `${name}（${loc}）`;
+    return name;
   }
 
   if (item.address?.country_code === 'jp') {
@@ -299,6 +312,73 @@ function formatDisplayName(item) {
     if (short) return short;
   }
   return item.display_name;
+}
+
+/** 世界版の表示補助（国名などは日本語優先） */
+function formatWorldLocationHint(address, displayName) {
+  if (!address) {
+    return String(displayName || '').split(',').slice(0, 2).join(', ').trim();
+  }
+  const country = toJapaneseWorldPlaceName(address.country) || address.country || '';
+  const city = toJapaneseWorldPlaceName(address.city) ||
+    toJapaneseWorldPlaceName(address.town) ||
+    address.city ||
+    address.town ||
+    address.state ||
+    '';
+  const parts = [city, country].filter(Boolean);
+  if (parts.length) return parts.join('・');
+  return String(displayName || '').split(',').slice(0, 2).join(', ').trim();
+}
+
+/**
+ * 世界版候補をカタログ日本語名・辞書で上書き
+ * @param {{ name, displayName, lat, lng, spotId?, isSpot?, isLandmark? }} place
+ */
+function localizeWorldPlace(place) {
+  if (!place) return place;
+
+  const near = findNearestSpot(place.lat, place.lng, 'world', 8);
+  if (near) {
+    return {
+      ...place,
+      name: near.name,
+      displayName: `${near.name}（名所）`,
+      spotId: near.id,
+      isSpot: true,
+      isLandmark: true
+    };
+  }
+
+  const matched = matchSpot(place.name, 'world');
+  if (matched && matched.mode === 'world') {
+    return {
+      ...place,
+      name: matched.name,
+      displayName: `${matched.name}（名所）`,
+      spotId: matched.id,
+      isSpot: true,
+      isLandmark: true
+    };
+  }
+
+  const ja = toJapaneseWorldPlaceName(place.name);
+  if (ja) {
+    const displayJa = place.displayName?.includes(place.name)
+      ? place.displayName.replace(place.name, ja)
+      : ja;
+    return { ...place, name: ja, displayName: displayJa };
+  }
+
+  // 現地語のまま残る場合は英語別名で再照合
+  if (hasNonJapaneseLocalScript(place.name) || looksLikeChineseOnlyName(place.name)) {
+    const fallback = toJapaneseWorldPlaceName(place.displayName?.split('（')[0]) || place.name;
+    if (fallback !== place.name) {
+      return { ...place, name: fallback, displayName: fallback };
+    }
+  }
+
+  return place;
 }
 
 function formatJapaneseAddress(a) {
@@ -324,10 +404,39 @@ function formatJapaneseAddress(a) {
   return (prefecture + body) || '';
 }
 
-function formatShortName(item) {
-  if (item.name && item.name.trim().length >= 2) {
-    return item.name.trim();
+function pickPreferredName(item) {
+  const nd = item.namedetails || {};
+  const candidates = [
+    nd['name:ja'],
+    nd['official_name:ja'],
+    nd['alt_name:ja']
+  ].filter(Boolean).map((s) => String(s).trim());
+
+  for (const c of candidates) {
+    if (c.length >= 2) return c;
   }
+
+  const raw = (item.name || '').trim();
+  if (raw) {
+    const mapped = toJapaneseWorldPlaceName(raw);
+    if (mapped) return mapped;
+
+    // 現地語のとき name:en 経由で日本語辞書・カタログ照合へ
+    if (hasNonJapaneseLocalScript(raw) || looksLikeChineseOnlyName(raw)) {
+      const en = (nd['name:en'] || nd.name || '').trim();
+      const fromEn = toJapaneseWorldPlaceName(en);
+      if (fromEn) return fromEn;
+      if (en && !hasNonJapaneseLocalScript(en)) return en;
+    }
+    return raw;
+  }
+
+  return '';
+}
+
+function formatShortName(item) {
+  const preferred = pickPreferredName(item);
+  if (preferred.length >= 2) return preferred;
 
   const a = item.address || {};
 
@@ -351,11 +460,13 @@ function formatShortName(item) {
     a.city,
     a.state,
     a.prefecture
-  ].filter(Boolean);
+  ].filter(Boolean)
+    .map((p) => toJapaneseWorldPlaceName(p) || p);
 
   const unique = [...new Set(parts)];
   if (unique.length) return unique.slice(0, 4).join(' ');
-  return item.display_name.split(',')[0];
+  const first = item.display_name.split(',')[0];
+  return toJapaneseWorldPlaceName(first) || first;
 }
 
 /** 入力値と検索結果が同一地点か */
@@ -400,7 +511,8 @@ export async function reverseGeocode(lat, lng) {
     lon: String(lng),
     format: 'json',
     'accept-language': 'ja',
-    addressdetails: '1'
+    addressdetails: '1',
+    namedetails: '1'
   });
 
   try {
@@ -410,7 +522,8 @@ export async function reverseGeocode(lat, lng) {
     if (!res.ok) return null;
 
     const item = await res.json();
-    return mapNominatimItem(item, 0);
+    const mode = item.address?.country_code === 'jp' ? 'japan' : 'world';
+    return mapNominatimItem(item, 0, mode);
   } catch {
     return null;
   }

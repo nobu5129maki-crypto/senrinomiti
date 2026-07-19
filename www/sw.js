@@ -1,5 +1,5 @@
 /** Service Worker — オフライン対応 + 更新反映 */
-const CACHE_VERSION = '1.0.26';
+const CACHE_VERSION = '1.0.27';
 const CACHE_NAME = `senri-${CACHE_VERSION}`;
 const PRECACHE = ['./', './index.html', './manifest.json'];
 

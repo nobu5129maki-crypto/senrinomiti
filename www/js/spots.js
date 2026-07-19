@@ -5,6 +5,7 @@
 import { SPOT_IMAGES } from './image-urls.js';
 import { expandSpotEntries, MINOR_SPOT_ENTRIES } from './spot-catalog.js';
 import { FAMOUS_SPOT_ENTRIES } from './spot-famous-catalog.js';
+import { haversineDistance } from './geo.js';
 
 const BASE_SPOTS = [
   {
@@ -737,29 +738,29 @@ const BASE_SPOTS = [
   },
   {
     id: 'seoul-tower',
-    name: 'Nソウルタワー',
-    aliases: ['ソウルタワー', '南山タワー', 'seoul tower', 'ソウル'],
+    name: '南山タワー',
+    aliases: ['ソウルタワー', 'Nソウルタワー', 'N Seoul Tower', '남산타워', '서울타워', 'seoul tower', 'ソウル'],
     lat: 37.5512,
     lng: 126.9882,
     mode: 'world',
-    spotLabel: 'Nソウルタワー',
+    spotLabel: '南山タワー',
     spotImage: SPOT_IMAGES.seoulTower,
     specialtyName: '韓国料理',
     specialtyImage: 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=600&q=80',
-    description: 'Nソウルタワーに到着！'
+    description: '南山タワーに到着！'
   },
   {
     id: 'shanghai-bund',
-    name: '上海外滩',
-    aliases: ['外滩', '上海', 'shanghai bund'],
+    name: '上海・外灘',
+    aliases: ['外灘', '外滩', '上海外滩', '上海バンド', 'The Bund', 'shanghai bund', '上海'],
     lat: 31.2397,
     lng: 121.4900,
     mode: 'world',
-    spotLabel: '上海外滩',
+    spotLabel: '上海・外灘',
     spotImage: SPOT_IMAGES.shanghaiBund,
     specialtyName: '小籠包',
     specialtyImage: 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=600&q=80',
-    description: '上海外滩に到着！'
+    description: '上海・外灘に到着！'
   },
   {
     id: 'hong-kong',
@@ -1111,6 +1112,33 @@ export function getSpotById(id) {
   return SPOTS.find((s) => s.id === id) || null;
 }
 
+/**
+ * 座標に最も近い登録名所
+ * @param {number} lat
+ * @param {number} lng
+ * @param {'japan'|'world'|null} mode
+ * @param {number} maxKm
+ */
+export function findNearestSpot(lat, lng, mode = null, maxKm = 8) {
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+
+  let best = null;
+  let bestDist = maxKm;
+
+  for (const spot of SPOTS) {
+    if (mode === 'world' && spot.mode !== 'world') continue;
+    if (mode === 'japan' && spot.mode === 'world') continue;
+
+    const dist = haversineDistance(lat, lng, spot.lat, spot.lng);
+    if (dist < bestDist) {
+      bestDist = dist;
+      best = spot;
+    }
+  }
+
+  return best;
+}
+
 export function matchSpot(name, mode = null) {
   if (!name) return null;
   const q = cleanSpotName(name);
@@ -1142,9 +1170,15 @@ export function getSpotLandmark(spotId, name) {
 export function attachSpotMetadata(place) {
   if (!place) return null;
 
-  const spot = place.spotId
+  let spot = place.spotId
     ? getSpotById(place.spotId)
     : findExactSpotByName(place.name);
+
+  // 世界版の名所候補は座標近傍のカタログ名（日本語）を優先
+  if (!spot && place.isLandmark && Number.isFinite(place.lat) && Number.isFinite(place.lng)) {
+    spot = findNearestSpot(place.lat, place.lng, 'world', 5)
+      || matchSpot(place.name, 'world');
+  }
   if (!spot) return place;
 
   return {

@@ -106,7 +106,21 @@ const REMOTE = {
   zaoOkama: 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/4f/Fall_at_Okama_Crater_Lake%2C_Mt._Zao%2C_Tohoku_region%2C_Japan.jpg/960px-Fall_at_Okama_Crater_Lake%2C_Mt._Zao%2C_Tohoku_region%2C_Japan.jpg',
   towadako: 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c0/Lake_Towada_from_Ohanabe_2008.jpg/960px-Lake_Towada_from_Ohanabe_2008.jpg',
   niseko: 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/9c/%E3%83%8B%E3%82%BB%E3%82%B3%E3%83%A2%E3%82%A4%E3%83%AF3.JPG/960px-%E3%83%8B%E3%82%BB%E3%82%B3%E3%83%A2%E3%82%A4%E3%83%AF3.JPG',
-  kawaguchiko: 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/66/Mount_Fuji_at_sunset%2C_March_2025.jpg/960px-Mount_Fuji_at_sunset%2C_March_2025.jpg'
+  kawaguchiko: 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/66/Mount_Fuji_at_sunset%2C_March_2025.jpg/960px-Mount_Fuji_at_sunset%2C_March_2025.jpg',
+  // ── 世界版カタログ専用（実在ファイル検証済み） ──
+  louvre: 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/66/Louvre_Museum_Wikimedia_Commons.jpg/960px-Louvre_Museum_Wikimedia_Commons.jpg',
+  tajMahal: 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/1d/Taj_Mahal_(Edited).jpeg/960px-Taj_Mahal_(Edited).jpeg',
+  machuPicchu: 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/eb/Machu_Picchu%2C_Peru.jpg/960px-Machu_Picchu%2C_Peru.jpg',
+  neuschwanstein: 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e8/Neuschwanstein_Castle_LOC_print_rotated.jpg/960px-Neuschwanstein_Castle_LOC_print_rotated.jpg',
+  petra: 'https://upload.wikimedia.org/wikipedia/commons/thumb/f/f5/Petra_Jordan_BW_21.JPG/960px-Petra_Jordan_BW_21.JPG',
+  angkorWat: 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/41/Angkor_Wat.jpg/960px-Angkor_Wat.jpg',
+  stonehenge: 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/1e/Stonehenge.jpg/960px-Stonehenge.jpg',
+  uluru: 'https://upload.wikimedia.org/wikipedia/commons/thumb/f/fc/Uluru_(Helicopter_view)-crop.jpg/960px-Uluru_(Helicopter_view)-crop.jpg',
+  chichenItza: 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/51/Chichen_Itza_3.jpg/960px-Chichen_Itza_3.jpg',
+  cnTower: 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/08/CN_Tower.jpg/960px-CN_Tower.jpg',
+  whiteHouse: 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/af/WhiteHouseSouthFacade.JPG/960px-WhiteHouseSouthFacade.JPG',
+  niagaraFalls: 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/bc/American_Falls_and_Bridal_Veil_Falls.jpg/960px-American_Falls_and_Bridal_Veil_Falls.jpg',
+  leaningTowerPisa: 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/cf/Torre_di_Pisa.jpg/960px-Torre_di_Pisa.jpg'
 };
 
 /** Wikimedia URL から画像キーを抽出 */
