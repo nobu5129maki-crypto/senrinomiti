@@ -1,7 +1,11 @@
 node_modules/
-www/download/*.apk
-release/*.apk
+# APK は原則除外。配布用の本番ファイルのみ許可
+# www 単体デプロイ時の相対パス download/... も除外解除する
 *.apk
+release/*.apk
+www/download/*.apk
+!www/download/senrinomiti.apk
+!download/senrinomiti.apk
 android/keystore.properties
 android/*.keystore
 android/KEYSTORE-CREDENTIALS.local.txt

@@ -71,10 +71,27 @@ export const PRODUCTION_URL = '${productionUrl}';
 
 function publishReleaseApk() {
   const releaseApk = path.join(root, 'release', 'senrinomiti.apk');
-  if (!fs.existsSync(releaseApk)) return;
   const downloadDir = path.join(www, 'download');
   fs.mkdirSync(downloadDir, { recursive: true });
-  fs.copyFileSync(releaseApk, path.join(downloadDir, 'senrinomiti.apk'));
+  const destApk = path.join(downloadDir, 'senrinomiti.apk');
+  if (fs.existsSync(releaseApk)) {
+    fs.copyFileSync(releaseApk, destApk);
+  }
+  if (!fs.existsSync(destApk)) {
+    console.warn('警告: www/download/senrinomiti.apk がありません。インストール配布前に copy-apk を実行してください。');
+  }
+}
+
+function publishVercelConfig() {
+  const src = path.join(root, 'vercel.json');
+  if (!fs.existsSync(src)) return;
+  const raw = JSON.parse(fs.readFileSync(src, 'utf8'));
+  // www 単体デプロイ用（ルートの build/output 指定は不要）
+  const forWww = {
+    rewrites: raw.rewrites || [],
+    headers: raw.headers || []
+  };
+  fs.writeFileSync(path.join(www, 'vercel.json'), JSON.stringify(forWww, null, 2) + '\n');
 }
 
 function ensureDownloadDir() {
@@ -150,6 +167,7 @@ writeAppVersion();
 writeDistributionConfig();
 ensureDownloadDir();
 publishReleaseApk();
+publishVercelConfig();
 writeVersionJson(root);
 writeVersionJson(www);
 injectSwVersion();

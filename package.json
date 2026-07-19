@@ -7,7 +7,7 @@
     "sync:android-version": "node scripts/sync-android-version.js",
     "copy:apk": "node scripts/copy-apk.js",
     "deploy:note": "node scripts/copy-apk.js && node scripts/build-web.js",
-    "deploy:vercel": "npx vercel deploy www --prod --yes",
+    "deploy:vercel": "node scripts/deploy-vercel.mjs",
     "generate:icons": "node scripts/generate-icons.js && node scripts/generate-android-icons.js && node scripts/generate-ios-icons.js",
     "cap:build:apk": "node scripts/build-android-apk.js",
     "cap:sync": "node scripts/build-web.js && npx cap sync",
