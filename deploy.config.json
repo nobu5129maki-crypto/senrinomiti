@@ -1,7 +1,7 @@
 {
   "productionUrl": "https://senrinomiti.vercel.app",
-  "appVersion": "1.0.27",
-  "androidVersionCode": 10027,
+  "appVersion": "1.0.28",
+  "androidVersionCode": 10028,
   "androidPackageId": "jp.senri.arukou",
   "distributionChannel": "note",
   "androidApkUrl": "https://senrinomiti.vercel.app/download/senrinomiti.apk",

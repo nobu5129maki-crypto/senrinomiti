@@ -180,6 +180,20 @@
             <ul class="suggestions" id="end-suggestions" hidden></ul>
             <p class="selected-place" id="end-selected" hidden></p>
           </div>
+
+          <div class="map-pick-panel">
+            <p class="field-label">地図から選ぶ</p>
+            <p class="hint map-pick-hint">下のボタンを押してから、地図をタップ／クリックしてください。住所や名所の入力と併用できます。</p>
+            <div class="map-pick-actions">
+              <button type="button" class="btn btn-secondary" id="btn-pick-start">地図で起点</button>
+              <button type="button" class="btn btn-secondary" id="btn-pick-end">地図で目的地</button>
+            </div>
+            <p class="map-pick-status" id="map-pick-status" aria-live="polite"></p>
+            <div class="map-container map-pick-container">
+              <div id="setup-map" role="application" aria-label="目的地選択用の地図"></div>
+            </div>
+          </div>
+
           <p class="route-reset-notice">※ 新しい目的地を設定すると、<strong>累計・本日の歩数と旅の進捗はすべてリセット</strong>されます。残したい場合は先に下の「セーブデータ」へ保存してください。</p>
           <button type="button" class="btn btn-primary btn-block" id="btn-custom-route" onclick="window.__senriTriggerCustomRoute()">ルートを設定</button>
         </div>

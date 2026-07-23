@@ -267,3 +267,113 @@ function getWalkedPoints(waypoints, traveledKm, currentPos, routeTotalKm = null)
 export function getMapElement() {
   return document.getElementById('map');
 }
+
+/* ===== 目的地設定：地図タップ用（旅マップとは別インスタンス） ===== */
+
+let pickerMap = null;
+let pickerStartMarker = null;
+let pickerEndMarker = null;
+let pickerClickHandler = null;
+let pickerActiveTarget = null; // 'start' | 'end' | null
+
+const PICKER_VIEWS = {
+  japan: { center: [36.5, 138.0], zoom: 5 },
+  world: { center: [20, 10], zoom: 2 }
+};
+
+export function initPickerMap(containerId = 'setup-map') {
+  const el = document.getElementById(containerId);
+  if (!el) return null;
+
+  if (pickerMap) {
+    invalidatePickerMapSize();
+    return pickerMap;
+  }
+
+  pickerMap = L.map(containerId, {
+    zoomControl: true,
+    attributionControl: true
+  });
+
+  L.tileLayer(TILE.url, {
+    attribution: TILE.attribution,
+    maxZoom: 18
+  }).addTo(pickerMap);
+
+  pickerMap.on('click', (e) => {
+    if (!pickerActiveTarget || typeof pickerClickHandler !== 'function') return;
+    pickerClickHandler({
+      target: pickerActiveTarget,
+      lat: e.latlng.lat,
+      lng: e.latlng.lng
+    });
+  });
+
+  const view = PICKER_VIEWS.japan;
+  pickerMap.setView(view.center, view.zoom);
+  return pickerMap;
+}
+
+export function destroyPickerMap() {
+  if (!pickerMap) return;
+  pickerMap.off('click');
+  pickerMap.remove();
+  pickerMap = null;
+  pickerStartMarker = null;
+  pickerEndMarker = null;
+  pickerClickHandler = null;
+  pickerActiveTarget = null;
+}
+
+export function setPickerClickHandler(handler) {
+  pickerClickHandler = typeof handler === 'function' ? handler : null;
+}
+
+export function setPickerActiveTarget(target) {
+  pickerActiveTarget = target === 'start' || target === 'end' ? target : null;
+  if (!pickerMap) return;
+  const container = pickerMap.getContainer();
+  container.classList.toggle('picker-active', Boolean(pickerActiveTarget));
+  container.classList.toggle('picker-start', pickerActiveTarget === 'start');
+  container.classList.toggle('picker-end', pickerActiveTarget === 'end');
+}
+
+export function getPickerActiveTarget() {
+  return pickerActiveTarget;
+}
+
+export function setPickerModeView(mode = 'japan') {
+  if (!pickerMap) return;
+  const view = PICKER_VIEWS[mode] || PICKER_VIEWS.japan;
+  pickerMap.setView(view.center, view.zoom);
+}
+
+export function setPickerMarkers(startPlace, endPlace) {
+  if (!pickerMap) return;
+
+  if (pickerStartMarker) {
+    pickerMap.removeLayer(pickerStartMarker);
+    pickerStartMarker = null;
+  }
+  if (pickerEndMarker) {
+    pickerMap.removeLayer(pickerEndMarker);
+    pickerEndMarker = null;
+  }
+
+  if (startPlace?.lat != null && startPlace?.lng != null) {
+    pickerStartMarker = L.marker([startPlace.lat, startPlace.lng], {
+      icon: createIcon('🏁', 'marker-start')
+    }).addTo(pickerMap).bindPopup(`起点: ${startPlace.name || ''}`);
+  }
+
+  if (endPlace?.lat != null && endPlace?.lng != null) {
+    pickerEndMarker = L.marker([endPlace.lat, endPlace.lng], {
+      icon: createIcon('🎯', 'marker-end')
+    }).addTo(pickerMap).bindPopup(`目的地: ${endPlace.name || ''}`);
+  }
+}
+
+export function invalidatePickerMapSize() {
+  if (!pickerMap) return;
+  pickerMap.invalidateSize({ animate: false });
+}

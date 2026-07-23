@@ -84,7 +84,7 @@ import {
 
 } from './routes.js';
 
-import { initMap, renderRoute, destroyMap, invalidateMapSize } from './map.js';
+import { initMap, renderRoute, destroyMap, invalidateMapSize, initPickerMap, setPickerClickHandler, setPickerActiveTarget, getPickerActiveTarget, setPickerModeView, setPickerMarkers, invalidatePickerMapSize } from './map.js';
 import {
   celebrateGoal,
   celebrateCheckpoint,
@@ -358,6 +358,9 @@ function exposeApi() {
     state = setMode(state, mode);
     selectedPlaces.start = null;
     selectedPlaces.end = null;
+    clearMapPickSelectionUi();
+    setPickerModeView(mode);
+    setPickerMarkers(null, null);
     refreshUI();
   };
   window.__senriOnTab = onTabViewChanged;
@@ -648,6 +651,10 @@ function onTabViewChanged(name) {
   if (name === 'collection') {
     ensureJourneyRecorded();
     renderCollection();
+  }
+
+  if (name === 'setup') {
+    ensureSetupPickerMap();
   }
 
   if (name === 'dashboard') {
@@ -1335,6 +1342,8 @@ function bindSetup() {
 
   bindLocationField('end', '#custom-end', '#end-suggestions', '#end-selected', '#btn-end-gps');
 
+  bindMapPicker();
+
 
 
   $('#stride-input').addEventListener('change', (e) => {
@@ -1357,6 +1366,120 @@ function bindSetup() {
 
   });
 
+}
+
+
+
+function bindMapPicker() {
+  const pickStartBtn = $('#btn-pick-start');
+  const pickEndBtn = $('#btn-pick-end');
+  if (!pickStartBtn || !pickEndBtn) return;
+
+  pickStartBtn.addEventListener('click', () => toggleMapPickTarget('start'));
+  pickEndBtn.addEventListener('click', () => toggleMapPickTarget('end'));
+
+  setPickerClickHandler(async ({ target, lat, lng }) => {
+    await applyMapPickedPlace(target, lat, lng);
+  });
+}
+
+
+
+function ensureSetupPickerMap() {
+  initPickerMap('setup-map');
+  setPickerModeView(state.mode);
+  setPickerMarkers(selectedPlaces.start, selectedPlaces.end);
+  requestAnimationFrame(() => {
+    invalidatePickerMapSize();
+    setTimeout(() => invalidatePickerMapSize(), 120);
+  });
+}
+
+
+
+function toggleMapPickTarget(target) {
+  ensureSetupPickerMap();
+  const next = getPickerActiveTarget() === target ? null : target;
+  setPickerActiveTarget(next);
+  updateMapPickUi(next);
+}
+
+
+
+function clearMapPickSelectionUi() {
+  setPickerActiveTarget(null);
+  updateMapPickUi(null);
+}
+
+
+
+function updateMapPickUi(activeTarget) {
+  const pickStartBtn = $('#btn-pick-start');
+  const pickEndBtn = $('#btn-pick-end');
+  const status = $('#map-pick-status');
+
+  pickStartBtn?.classList.toggle('is-active', activeTarget === 'start');
+  pickEndBtn?.classList.toggle('is-active', activeTarget === 'end');
+
+  if (!status) return;
+  if (activeTarget === 'start') {
+    status.textContent = '地図をタップして起点を選んでください';
+  } else if (activeTarget === 'end') {
+    status.textContent = '地図をタップして目的地を選んでください';
+  } else {
+    status.textContent = '';
+  }
+}
+
+
+
+async function applyMapPickedPlace(target, lat, lng) {
+  const status = $('#map-pick-status');
+  const pickStartBtn = $('#btn-pick-start');
+  const pickEndBtn = $('#btn-pick-end');
+  const busyBtn = target === 'start' ? pickStartBtn : pickEndBtn;
+
+  if (busyBtn) busyBtn.disabled = true;
+  if (status) status.textContent = '地点名を取得しています…';
+
+  try {
+    let place = await reverseGeocode(lat, lng);
+    if (!place) {
+      place = {
+        id: `map-${lat.toFixed(5)}-${lng.toFixed(5)}`,
+        name: `${lat.toFixed(4)}, ${lng.toFixed(4)}`,
+        displayName: `地図で選択（${lat.toFixed(4)}, ${lng.toFixed(4)}）`,
+        lat,
+        lng,
+        isLandmark: false,
+        isAddress: false
+      };
+    } else {
+      place = {
+        ...place,
+        lat,
+        lng
+      };
+    }
+
+    const input = $(target === 'start' ? '#custom-start' : '#custom-end');
+    const selectedEl = $(target === 'start' ? '#start-selected' : '#end-selected');
+    const list = $(target === 'start' ? '#start-suggestions' : '#end-suggestions');
+    selectPlace(target, place, input, selectedEl, list);
+    setPickerMarkers(selectedPlaces.start, selectedPlaces.end);
+    setPickerActiveTarget(null);
+    updateMapPickUi(null);
+    if (status) {
+      status.textContent = target === 'start'
+        ? `起点を設定: ${place.name}`
+        : `目的地を設定: ${place.name}`;
+    }
+  } catch (err) {
+    if (status) status.textContent = '';
+    alert(err.message || '地図からの地点取得に失敗しました。');
+  } finally {
+    if (busyBtn) busyBtn.disabled = false;
+  }
 }
 
 
@@ -1497,6 +1620,7 @@ function bindLocationField(key, inputSel, listSel, selectedSel, gpsBtnSel) {
 
     selectedPlaces[key] = null;
     selectedEl.hidden = true;
+    setPickerMarkers(selectedPlaces.start, selectedPlaces.end);
     clearTimeout(searchTimer);
     searchTimer = setTimeout(() => searchAndShow(input.value, list, key), 400);
   });
@@ -1504,6 +1628,7 @@ function bindLocationField(key, inputSel, listSel, selectedSel, gpsBtnSel) {
   input.addEventListener('compositionend', () => {
     selectedPlaces[key] = null;
     selectedEl.hidden = true;
+    setPickerMarkers(selectedPlaces.start, selectedPlaces.end);
     clearTimeout(searchTimer);
     searchTimer = setTimeout(() => searchAndShow(input.value, list, key), 50);
   });
@@ -1612,7 +1737,7 @@ function selectPlace(key, place, input, selectedEl, listEl) {
 
   selectedPlaces[key] = {
     ...attachSpotMetadata(place),
-    queryText: normalizeJaAddressQuery(input.value.trim()) || input.value.trim()
+    queryText: normalizeJaAddressQuery(input.value.trim()) || input.value.trim() || place.name
   };
 
   input.value = place.name;
@@ -1622,6 +1747,8 @@ function selectPlace(key, place, input, selectedEl, listEl) {
   selectedEl.hidden = false;
 
   listEl.hidden = true;
+
+  setPickerMarkers(selectedPlaces.start, selectedPlaces.end);
 
 }
 
