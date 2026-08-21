@@ -50,7 +50,10 @@ export function normalizeState(state) {
     state.manualTodaySteps = 0;
     state.pedometerTodaySteps = 0;
     state.todayDate = todayKey();
-    if (state.pedometer) state.pedometer.sessionSteps = 0;
+    if (state.pedometer) {
+      state.pedometer.sessionSteps = 0;
+      state.pedometer.lastNativeTotal = 0;
+    }
   }
 
   if (!state.pedometer) {
@@ -137,7 +140,10 @@ function ensureToday(state) {
     state.manualTodaySteps = 0;
     state.pedometerTodaySteps = 0;
     state.todayDate = todayKey();
-    if (state.pedometer) state.pedometer.sessionSteps = 0;
+    if (state.pedometer) {
+      state.pedometer.sessionSteps = 0;
+      state.pedometer.lastNativeTotal = 0;
+    }
     return true;
   }
   return false;

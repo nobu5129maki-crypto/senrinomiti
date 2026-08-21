@@ -207,6 +207,8 @@ async function init() {
 
   pedometer.setCreditedTodayGetter?.(() => state.pedometerTodaySteps || 0);
   pedometer.setJourneyActiveGetter?.(() => Boolean(state.route));
+  pedometer.setJourneyStartedAtGetter?.(() => state.journeyStartedAt || null);
+  pedometer.setDeviceBaselineGetter?.(() => getPedometerDeviceBaseline(state));
 
   initInstallPrompt();
   initAndroidInstallPrompt();

@@ -199,6 +199,25 @@ public class DailyStepsPlugin extends Plugin {
     }
 
     @PluginMethod
+    public void getHistoricalDays(PluginCall call) {
+        String from = call.getString("from", "");
+        String to = call.getString("to", "");
+        Context context = getContext();
+        StepCounterStore.checkAndRollDay(context);
+        JSArray arr = new JSArray();
+        for (JSONObject item : StepCounterStore.getPendingDays(context)) {
+            String date = item.optString("date");
+            if (date.isEmpty()) continue;
+            if (!from.isEmpty() && date.compareTo(from) < 0) continue;
+            if (!to.isEmpty() && date.compareTo(to) > 0) continue;
+            arr.put(item);
+        }
+        JSObject result = new JSObject();
+        result.put("days", arr);
+        call.resolve(result);
+    }
+
+    @PluginMethod
     public void clearPendingDays(PluginCall call) {
         StepCounterStore.clearPendingDays(getContext());
         call.resolve();

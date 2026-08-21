@@ -20,7 +20,8 @@
     "cap:open:android": "npx cap open android",
     "cap:open:ios": "npx cap open ios",
     "cap:build:shell": "node scripts/build-web.js && npx cap sync android && npx cap open android",
-    "cap:build:shell:ios": "node scripts/build-web.js && npx cap sync ios && npx cap open ios"
+    "cap:build:shell:ios": "node scripts/build-web.js && npx cap sync ios && npx cap open ios",
+    "test": "node --test tests/*.test.js"
   },
   "dependencies": {
     "@capacitor/android": "^7.4.2",

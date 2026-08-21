@@ -90,6 +90,48 @@ enum StepCounterStore {
         savePendingDays(items)
     }
 
+    static func addPendingDayIfNeeded(dateKey: String, steps: Int) {
+        addPendingDay(dateKey: dateKey, steps: steps)
+    }
+
+    static func dayInterval(for dateKey: String) -> (start: Date, end: Date)? {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = .current
+        formatter.dateFormat = "yyyy-MM-dd"
+        guard let day = formatter.date(from: dateKey) else { return nil }
+        let start = Calendar.current.startOfDay(for: day)
+        guard let next = Calendar.current.date(byAdding: .day, value: 1, to: start) else { return nil }
+        let end = min(Date(), next.addingTimeInterval(-0.001))
+        if end <= start { return nil }
+        return (start, end)
+    }
+
+    static func shiftDateKey(_ dateKey: String, days: Int) -> String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = .current
+        formatter.dateFormat = "yyyy-MM-dd"
+        guard let day = formatter.date(from: dateKey),
+              let shifted = Calendar.current.date(byAdding: .day, value: days, to: day) else {
+            return dateKey
+        }
+        return todayKey(from: shifted)
+    }
+
+    static func dateKeysInclusive(from: String, to: String) -> [String] {
+        guard from <= to else { return [] }
+        var keys: [String] = []
+        var current = from
+        var guardCount = 0
+        while current <= to && guardCount < 400 {
+            keys.append(current)
+            current = shiftDateKey(current, days: 1)
+            guardCount += 1
+        }
+        return keys
+    }
+
     private static func addPendingDay(dateKey: String, steps: Int) {
         var items = getPendingDays()
         if let index = items.firstIndex(where: { ($0["date"] as? String) == dateKey }) {

@@ -5,8 +5,10 @@ import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
+import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.pm.ServiceInfo;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
@@ -57,6 +59,8 @@ public class StepTrackingService extends Service implements SensorEventListener 
         }
     };
 
+    private BroadcastReceiver dateChangeReceiver;
+
     public static void start(Context context) {
         Context appContext = context.getApplicationContext();
         Intent intent = new Intent(appContext, StepTrackingService.class);
@@ -87,6 +91,7 @@ public class StepTrackingService extends Service implements SensorEventListener 
             stepCounter = sensorManager.getDefaultSensor(Sensor.TYPE_STEP_COUNTER);
         }
         createNotificationChannel();
+        registerDateChangeReceiver();
     }
 
     @Override
@@ -183,6 +188,7 @@ public class StepTrackingService extends Service implements SensorEventListener 
 
     @Override
     public void onDestroy() {
+        unregisterDateChangeReceiver();
         boolean shouldRestart = StepCounterStore.isTrackingEnabled(this);
         mainHandler.removeCallbacks(keepAliveRunnable);
         if (sensorManager != null && sensorRegistered) {
@@ -219,6 +225,42 @@ public class StepTrackingService extends Service implements SensorEventListener 
         int todaySteps = StepCounterStore.getTodaySteps(this);
         updateNotification(todaySteps);
         StepUpdateEvents.sendStepsUpdated(this, todaySteps, StepCounterStore.todayKey());
+    }
+
+    private void registerDateChangeReceiver() {
+        if (dateChangeReceiver != null) return;
+        dateChangeReceiver = new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                if (intent == null) return;
+                String action = intent.getAction();
+                if (Intent.ACTION_DATE_CHANGED.equals(action)
+                    || Intent.ACTION_TIMEZONE_CHANGED.equals(action)
+                    || Intent.ACTION_TIME_CHANGED.equals(action)) {
+                    StepCounterStore.checkAndRollDay(StepTrackingService.this);
+                    updateNotification(StepCounterStore.getTodaySteps(StepTrackingService.this));
+                }
+            }
+        };
+        IntentFilter filter = new IntentFilter();
+        filter.addAction(Intent.ACTION_DATE_CHANGED);
+        filter.addAction(Intent.ACTION_TIMEZONE_CHANGED);
+        filter.addAction(Intent.ACTION_TIME_CHANGED);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(dateChangeReceiver, filter, Context.RECEIVER_NOT_EXPORTED);
+        } else {
+            registerReceiver(dateChangeReceiver, filter);
+        }
+    }
+
+    private void unregisterDateChangeReceiver() {
+        if (dateChangeReceiver == null) return;
+        try {
+            unregisterReceiver(dateChangeReceiver);
+        } catch (Exception ignored) {
+            /* ignore */
+        }
+        dateChangeReceiver = null;
     }
 
     @Override

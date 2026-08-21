@@ -17,6 +17,7 @@ public class DailyStepsPlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "isTracking", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "getTodaySteps", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "getPendingDays", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "getHistoricalDays", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "clearPendingDays", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "acknowledgePendingDay", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "resetToday", returnType: CAPPluginReturnPromise),
@@ -107,7 +108,17 @@ public class DailyStepsPlugin: CAPPlugin, CAPBridgedPlugin {
     }
 
     @objc func getPendingDays(_ call: CAPPluginCall) {
-        call.resolve(["days": StepCounterStore.getPendingDays()])
+        backfillHistoricalDays(from: nil, to: nil) { days in
+            call.resolve(["days": days])
+        }
+    }
+
+    @objc func getHistoricalDays(_ call: CAPPluginCall) {
+        let from = call.getString("from") ?? ""
+        let to = call.getString("to") ?? ""
+        backfillHistoricalDays(from: from.isEmpty ? nil : from, to: to.isEmpty ? nil : to) { days in
+            call.resolve(["days": days])
+        }
     }
 
     @objc func clearPendingDays(_ call: CAPPluginCall) {
@@ -186,6 +197,52 @@ public class DailyStepsPlugin: CAPPlugin, CAPBridgedPlugin {
                 StepCounterStore.saveTodaySteps(data.numberOfSteps.intValue)
             }
             completion?(StepCounterStore.getTodaySteps())
+        }
+    }
+
+    private func backfillHistoricalDays(from: String?, to: String?, completion: @escaping ([[String: Any]]) -> Void) {
+        StepCounterStore.rollDayIfNeeded()
+        let today = StepCounterStore.todayKey()
+        let rangeEnd = to ?? StepCounterStore.shiftDateKey(today, days: -1)
+        let rangeStart = from ?? rangeEnd
+        guard !rangeStart.isEmpty, !rangeEnd.isEmpty, rangeStart <= rangeEnd else {
+            completion(StepCounterStore.getPendingDays())
+            return
+        }
+
+        guard CMPedometer.isStepCountingAvailable() else {
+            completion(StepCounterStore.getPendingDays())
+            return
+        }
+
+        let keys = StepCounterStore.dateKeysInclusive(from: rangeStart, to: rangeEnd)
+        guard !keys.isEmpty else {
+            completion(StepCounterStore.getPendingDays())
+            return
+        }
+
+        let group = DispatchGroup()
+        let lock = NSLock()
+        var queried: [String: Int] = [:]
+
+        for dateKey in keys {
+            guard let interval = StepCounterStore.dayInterval(for: dateKey) else { continue }
+            group.enter()
+            pedometer.queryPedometerData(from: interval.start, to: interval.end) { data, error in
+                defer { group.leave() }
+                guard error == nil, let data = data else { return }
+                let steps = data.numberOfSteps.intValue
+                lock.lock()
+                queried[dateKey] = max(0, steps)
+                lock.unlock()
+            }
+        }
+
+        group.notify(queue: .main) {
+            for (dateKey, steps) in queried where steps > 0 && dateKey < today {
+                StepCounterStore.addPendingDayIfNeeded(dateKey: dateKey, steps: steps)
+            }
+            completion(StepCounterStore.getPendingDays())
         }
     }
 
