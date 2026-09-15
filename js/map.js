@@ -348,7 +348,28 @@ export function setPickerModeView(mode = 'japan') {
   pickerMap.setView(view.center, view.zoom);
 }
 
-export function setPickerMarkers(startPlace, endPlace) {
+/** 地図ピン用の緯度経度。欠落・文字列・範囲外は null */
+export function toPickerLatLng(place) {
+  if (!place) return null;
+  const lat = Number(place.lat);
+  const lng = Number(place.lng);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+  if (lat < -90 || lat > 90 || lng < -180 || lng > 180) return null;
+  return { lat, lng };
+}
+
+function pickerZoomForMode(mode = 'japan') {
+  return mode === 'world' ? 8 : 13;
+}
+
+function focusPickerCamera(place, mode = 'japan') {
+  if (!pickerMap) return;
+  const ll = toPickerLatLng(place);
+  if (!ll) return;
+  pickerMap.setView([ll.lat, ll.lng], pickerZoomForMode(mode));
+}
+
+export function setPickerMarkers(startPlace, endPlace, options = {}) {
   if (!pickerMap) return;
 
   if (pickerStartMarker) {
@@ -360,17 +381,38 @@ export function setPickerMarkers(startPlace, endPlace) {
     pickerEndMarker = null;
   }
 
-  if (startPlace?.lat != null && startPlace?.lng != null) {
-    pickerStartMarker = L.marker([startPlace.lat, startPlace.lng], {
+  const startLl = toPickerLatLng(startPlace);
+  const endLl = toPickerLatLng(endPlace);
+
+  if (startLl) {
+    pickerStartMarker = L.marker([startLl.lat, startLl.lng], {
       icon: createIcon('🏁', 'marker-start')
     }).addTo(pickerMap).bindPopup(`起点: ${startPlace.name || ''}`);
   }
 
-  if (endPlace?.lat != null && endPlace?.lng != null) {
-    pickerEndMarker = L.marker([endPlace.lat, endPlace.lng], {
+  if (endLl) {
+    pickerEndMarker = L.marker([endLl.lat, endLl.lng], {
       icon: createIcon('🎯', 'marker-end')
     }).addTo(pickerMap).bindPopup(`目的地: ${endPlace.name || ''}`);
   }
+
+  const mode = options.mode || 'japan';
+  const focusKey = options.focus;
+  const focusPlace = focusKey === 'start' ? startPlace : focusKey === 'end' ? endPlace : null;
+  if (toPickerLatLng(focusPlace)) {
+    focusPickerCamera(focusPlace, mode);
+  } else if (startLl && endLl) {
+    pickerMap.fitBounds(L.latLngBounds([startLl.lat, startLl.lng], [endLl.lat, endLl.lng]), {
+      padding: [36, 36],
+      maxZoom: pickerZoomForMode(mode)
+    });
+  } else if (endLl) {
+    focusPickerCamera(endPlace, mode);
+  } else if (startLl) {
+    focusPickerCamera(startPlace, mode);
+  }
+
+  pickerMap.invalidateSize({ animate: false });
 }
 
 export function invalidatePickerMapSize() {

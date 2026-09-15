@@ -172,7 +172,7 @@ const BASE_SPOTS = [
     lng: 140.8556,
     mode: 'japan',
     spotLabel: '仙台城（青葉城）',
-    spotImage: SPOT_IMAGES.zuihoden,
+    spotImage: SPOT_IMAGES.sendaiCastle,
     specialtyName: '牛タン',
     specialtyImage: 'https://images.unsplash.com/photo-1546833999-b9f581a1996d?w=600&q=80',
     description: '伊達政宗公ゆかりの仙台・青葉城下に到着！'
@@ -523,7 +523,7 @@ const BASE_SPOTS = [
     lng: 135.5063,
     mode: 'japan',
     spotLabel: '通天閣',
-    spotImage: SPOT_IMAGES.dotonbori,
+    spotImage: SPOT_IMAGES.tsutenkaku,
     specialtyName: '串カツ',
     specialtyImage: 'https://images.unsplash.com/photo-1604382354936-07c5d9983bd3?w=600&q=80',
     description: '大阪・通天閣に到着！'

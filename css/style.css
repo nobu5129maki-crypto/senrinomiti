@@ -835,10 +835,36 @@ body.has-android-install-banner.has-ios-install-banner.has-install-banner {
 }
 
 .suggestions li {
-  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px 8px 14px;
   cursor: pointer;
   border-bottom: 1px solid var(--color-border);
   font-size: 0.875rem;
+}
+
+.suggestion-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.suggestion-pin {
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: #fff;
+  cursor: pointer;
+  font-size: 1.05rem;
+  line-height: 1;
+}
+
+.suggestion-pin:hover,
+.suggestions li.active .suggestion-pin {
+  background: #ccfbf1;
+  border-color: var(--color-primary);
 }
 
 .suggestions li:last-child {

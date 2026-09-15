@@ -15,6 +15,8 @@ import {
   restoreTodayWatermark,
   catchUpDateWindow,
   journeyStartDateKey,
+  journeyTodayWatermark,
+  resolveCatchUpWatermarks,
   getCreditedForDate,
   setCreditedForDate,
   hasAnyCreditedDate,
@@ -71,6 +73,9 @@ let deviceBaselineGetter = null;
 let suppressNextDailyCredit = false;
 /** 新目的地設定中など、旅への歩数加算を一時停止 */
 let creditPaused = false;
+/** 本日分の同期済み水位（旅加算の完了を待たずに進める） */
+let creditedTodayMemory = null;
+let creditedTodayMemoryDate = '';
 
 function isAndroid() {
   const ua = navigator.userAgent || '';
@@ -430,15 +435,52 @@ function allowBackgroundCatchUp() {
   );
 }
 
-function creditedWatermarkFor(dateKey) {
+function getJourneyTodaySteps() {
+  return creditedTodayGetter ? Math.max(0, Math.floor(Number(creditedTodayGetter()) || 0)) : 0;
+}
+
+function journeyWatermarkForToday() {
   const day = todayKey();
-  const fallback = dateKey === day && getNativeDailyMarker().date === day
-    ? getNativeDailyMarker().total
-    : 0;
-  const fitFallback = dateKey === day && googleFit.getDailySyncMarker?.().date === day
-    ? googleFit.getDailySyncMarker().total
-    : 0;
-  return getCreditedForDate(dateKey, Math.max(fallback, fitFallback));
+  return journeyTodayWatermark({
+    dateKey: day,
+    today: day,
+    pedometerTodaySteps: getJourneyTodaySteps(),
+    deviceBaseline: getDeviceBaseline(),
+    journeyStartedAt: getJourneyStartedAt()
+  });
+}
+
+function seedCreditedMemoryFromJourney() {
+  const day = todayKey();
+  creditedTodayMemoryDate = day;
+  creditedTodayMemory = journeyWatermarkForToday();
+}
+
+function creditedWatermarkFor(dateKey, sourceTotal = 0) {
+  const day = todayKey();
+  if (creditedTodayMemoryDate && creditedTodayMemoryDate !== day) {
+    creditedTodayMemory = null;
+    creditedTodayMemoryDate = '';
+  }
+
+  if (dateKey === day) {
+    const marks = resolveCatchUpWatermarks({
+      dateKey,
+      today: day,
+      pedometerTodaySteps: getJourneyTodaySteps(),
+      deviceBaseline: getDeviceBaseline(),
+      journeyStartedAt: getJourneyStartedAt(),
+      memoryCredited: creditedTodayMemoryDate === day ? creditedTodayMemory : null,
+      sourceTotal
+    });
+    return marks;
+  }
+
+  return {
+    alreadyCredited: getCreditedForDate(dateKey, 0),
+    floorCredited: floorForDate(dateKey),
+    journeyWatermark: 0
+  };
 }
 
 function persistCredited(dateKey, total) {
@@ -464,15 +506,25 @@ function applySourceDay(dateKey, sourceTotal, { pendingDay = false } = {}) {
     lastNativeSessionSteps = deviceToday;
   }
 
+  const marks = creditedWatermarkFor(dateKey, deviceToday);
+  const suppressCredit = creditPaused || !isJourneyActive() || (suppressNextDailyCredit && isToday);
+
   const result = computeCatchUpDelta({
     sourceTotal: deviceToday,
-    alreadyCredited: creditedWatermarkFor(dateKey),
-    floorCredited: floorForDate(dateKey),
-    suppressCredit: creditPaused || !isJourneyActive() || (suppressNextDailyCredit && isToday),
+    alreadyCredited: marks.alreadyCredited,
+    floorCredited: marks.floorCredited,
+    suppressCredit,
     allowBackgroundCatchUp: allowBackgroundCatchUp()
   });
 
-  persistCredited(dateKey, result.nextCredited);
+  const raiseWatermark = !suppressCredit;
+  if (raiseWatermark) {
+    persistCredited(dateKey, result.nextCredited);
+    if (isToday) {
+      creditedTodayMemoryDate = dateKey;
+      creditedTodayMemory = result.nextCredited;
+    }
+  }
 
   if (creditPaused) {
     pendingSteps = 0;
@@ -521,6 +573,8 @@ export function clearDailySyncMarkers() {
   sessionSteps = 0;
   lastNativeSessionSteps = 0;
   pendingSteps = 0;
+  creditedTodayMemory = 0;
+  creditedTodayMemoryDate = day;
 }
 
 function applyDailySourceTotal(sourceToday) {
@@ -605,21 +659,35 @@ async function syncMissedDays() {
   }
 }
 
+async function readTodaySourceTotal() {
+  let nativeToday = 0;
+  let fitToday = 0;
+
+  if (await nativeSteps.isNativeStepCounterAvailable()) {
+    try {
+      nativeToday = Math.max(0, Math.floor(Number(await nativeSteps.getTodaySteps()) || 0));
+    } catch {
+      nativeToday = 0;
+    }
+  }
+
+  if (googleFit.canUseBackgroundSync()) {
+    try {
+      fitToday = Math.max(0, Math.floor(Number(await googleFit.getTodaySteps()) || 0));
+    } catch {
+      fitToday = 0;
+    }
+  }
+
+  return Math.max(nativeToday, fitToday);
+}
+
 async function syncDailySteps() {
   if (!enabled && !autoTrackMode) return;
 
   try {
     await syncMissedDays();
-
-    if (googleFit.canUseBackgroundSync()) {
-      const sourceToday = await googleFit.getTodaySteps();
-      applyDailySourceTotal(sourceToday);
-      return;
-    }
-    if (await nativeSteps.isNativeStepCounterAvailable()) {
-      const sourceToday = await nativeSteps.getTodaySteps();
-      applyDailySourceTotal(sourceToday);
-    }
+    applyDailySourceTotal(await readTodaySourceTotal());
   } catch {
     /* 通信エラー等は次回再試行 */
   }
@@ -670,6 +738,8 @@ export async function onDayRolled() {
   lastKnownDay = day;
   sessionSteps = 0;
   lastNativeSessionSteps = 0;
+  creditedTodayMemory = 0;
+  creditedTodayMemoryDate = day;
   googleFit.resetDailySyncMarker(day, 0);
   setNativeDailyMarker(day, 0);
   setCreditedForDate(day, 0, day);
@@ -1063,6 +1133,9 @@ export async function startAutoDailyTracking(onSteps) {
   const fitMarker = googleFit.getDailySyncMarker?.() || { date: '', total: 0 };
   if (fitMarker.date) mergeMarkerIntoCredited(fitMarker.date, fitMarker.total);
 
+  seedCreditedMemoryFromJourney();
+  suppressNextDailyCredit = false;
+
   await nativeSteps.waitForNativeReady?.();
 
   if (isAndroidNativeApp() || (isNativeAppShell() && isIosDevice())) {
@@ -1168,16 +1241,14 @@ export async function syncBaselineToDevice() {
   let deviceToday = Math.max(0, Math.floor(sessionSteps));
 
   try {
-    if (googleFit.canUseBackgroundSync()) {
-      deviceToday = Math.max(0, Math.floor(Number(await googleFit.getTodaySteps()) || 0));
-    } else if (await nativeSteps.isNativeStepCounterAvailable()) {
-      deviceToday = Math.max(0, Math.floor(Number(await nativeSteps.getTodaySteps()) || 0));
-    }
+    deviceToday = Math.max(deviceToday, await readTodaySourceTotal());
   } catch {
     /* 読み取れない場合は現在値を維持 */
   }
 
   persistCredited(day, deviceToday);
+  creditedTodayMemoryDate = day;
+  creditedTodayMemory = deviceToday;
   sessionSteps = deviceToday;
   lastNativeSessionSteps = deviceToday;
   pendingSteps = 0;
@@ -1217,10 +1288,9 @@ export function restoreSession(deviceBaseline = 0) {
   pendingSteps = 0;
   sessionSteps = restored.sessionSteps;
   lastNativeSessionSteps = restored.sessionSteps;
-  if (restored.applyToToday) {
-    persistCredited(day, restored.watermark);
-  }
-  nativeSteps.syncPollBaseline?.(restored.applyToToday ? restored.watermark : 0);
+  suppressNextDailyCredit = false;
+  seedCreditedMemoryFromJourney();
+  nativeSteps.syncPollBaseline?.(creditedTodayMemory || 0);
 }
 
 export function flush() {
@@ -1322,6 +1392,8 @@ export async function resetSessionBaseline() {
   lastNativeSessionSteps = 0;
   pendingSteps = 0;
   const day = todayKey();
+  creditedTodayMemory = 0;
+  creditedTodayMemoryDate = day;
   googleFit.resetDailySyncMarker(day, 0);
   setNativeDailyMarker(day, 0);
   await nativeSteps.resetNativeSessionBaseline();
