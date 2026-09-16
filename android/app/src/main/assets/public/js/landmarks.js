@@ -90,8 +90,8 @@ export const LANDMARKS = {
     specialtyImage: 'https://images.unsplash.com/photo-1560806887-1e4cd0b6cbd6?w=600&q=80'
   },
   morioka: {
-    spotLabel: '盛岡',
-    spotImage: SPOT_IMAGES.sensoji,
+    spotLabel: '盛岡・盛岡城跡',
+    spotImage: SPOT_IMAGES.moriokaCastle,
     specialtyName: 'わんこそば',
     specialtyImage: DEFAULT_FOOD
   },
@@ -108,20 +108,20 @@ export const LANDMARKS = {
     specialtyImage: DEFAULT_FOOD
   },
   fukushima: {
-    spotLabel: '福島',
-    spotImage: SPOT_IMAGES.towadako,
+    spotLabel: '福島・鶴ヶ城',
+    spotImage: SPOT_IMAGES.aizuwakamatsuCastle,
     specialtyName: '桃',
     specialtyImage: DEFAULT_FOOD
   },
   mito: {
     spotLabel: '水戸・偕楽園',
-    spotImage: SPOT_IMAGES.hitachiKaihin,
+    spotImage: SPOT_IMAGES.kairakuen,
     specialtyName: '納豆',
     specialtyImage: DEFAULT_FOOD
   },
   utsunomiya: {
-    spotLabel: '宇都宮',
-    spotImage: SPOT_IMAGES.nikkoToshogu,
+    spotLabel: '宇都宮二荒山神社',
+    spotImage: SPOT_IMAGES.utsunomiyaFutaarayama,
     specialtyName: '餃子',
     specialtyImage: DEFAULT_FOOD
   },
@@ -132,20 +132,20 @@ export const LANDMARKS = {
     specialtyImage: DEFAULT_FOOD
   },
   saitama: {
-    spotLabel: 'さいたま',
-    spotImage: SPOT_IMAGES.shirakawago,
+    spotLabel: 'さいたま・武蔵一宮氷川神社',
+    spotImage: SPOT_IMAGES.hikawaShrine,
     specialtyName: '草加せんべい',
     specialtyImage: DEFAULT_FOOD
   },
   chiba: {
-    spotLabel: '千葉',
-    spotImage: SPOT_IMAGES.enoshima,
+    spotLabel: '千葉ポートタワー',
+    spotImage: SPOT_IMAGES.chibaPortTower,
     specialtyName: '落花生',
     specialtyImage: DEFAULT_FOOD
   },
   niigata: {
-    spotLabel: '新潟',
-    spotImage: SPOT_IMAGES.fuji,
+    spotLabel: '新潟・萬代橋',
+    spotImage: SPOT_IMAGES.bandaiBridge,
     specialtyName: 'お米・日本酒',
     specialtyImage: DEFAULT_FOOD
   },
@@ -162,8 +162,8 @@ export const LANDMARKS = {
     specialtyImage: DEFAULT_FOOD
   },
   kofu: {
-    spotLabel: '甲府',
-    spotImage: SPOT_IMAGES.fuji,
+    spotLabel: '甲府城（舞鶴城公園）',
+    spotImage: SPOT_IMAGES.kofuCastle,
     specialtyName: 'ほうとう',
     specialtyImage: DEFAULT_FOOD
   },
@@ -180,14 +180,14 @@ export const LANDMARKS = {
     specialtyImage: DEFAULT_FOOD
   },
   tsu: {
-    spotLabel: '津',
-    spotImage: SPOT_IMAGES.itsukushima,
+    spotLabel: '津城跡',
+    spotImage: SPOT_IMAGES.tsuCastle,
     specialtyName: 'てこね寿司',
     specialtyImage: DEFAULT_FOOD
   },
   otsu: {
-    spotLabel: '大津',
-    spotImage: SPOT_IMAGES.arashiyama,
+    spotLabel: '大津・琵琶湖大橋',
+    spotImage: SPOT_IMAGES.biwako,
     specialtyName: '近江牛',
     specialtyImage: DEFAULT_FOOD
   },
@@ -210,8 +210,8 @@ export const LANDMARKS = {
     specialtyImage: DEFAULT_FOOD
   },
   okayama: {
-    spotLabel: '岡山',
-    spotImage: SPOT_IMAGES.shirakawago,
+    spotLabel: '岡山城',
+    spotImage: SPOT_IMAGES.okayamaCastle,
     specialtyName: 'きびだんご',
     specialtyImage: DEFAULT_FOOD
   },
@@ -228,8 +228,8 @@ export const LANDMARKS = {
     specialtyImage: DEFAULT_FOOD
   },
   takamatsu: {
-    spotLabel: '高松',
-    spotImage: SPOT_IMAGES.itsukushima,
+    spotLabel: '高松・栗林公園',
+    spotImage: SPOT_IMAGES.ritsurinGarden,
     specialtyName: '讃岐うどん',
     specialtyImage: DEFAULT_FOOD
   },
@@ -241,19 +241,19 @@ export const LANDMARKS = {
   },
   kochi: {
     spotLabel: '高知城',
-    spotImage: SPOT_IMAGES.nagoyaCastle,
+    spotImage: SPOT_IMAGES.kochiCastle,
     specialtyName: 'カツオのたたき',
     specialtyImage: DEFAULT_FOOD
   },
   saga: {
-    spotLabel: '佐賀',
-    spotImage: SPOT_IMAGES.fukuokaOhori,
+    spotLabel: '佐賀・吉野ヶ里遺跡',
+    spotImage: SPOT_IMAGES.yoshinogari,
     specialtyName: '佐賀牛',
     specialtyImage: DEFAULT_FOOD
   },
   nagasaki: {
     spotLabel: '長崎・グラバー園',
-    spotImage: SPOT_IMAGES.kobePort,
+    spotImage: SPOT_IMAGES.gloverGarden,
     specialtyName: 'ちゃんぽん',
     specialtyImage: DEFAULT_FOOD
   },
@@ -300,7 +300,7 @@ export const LANDMARKS = {
     specialtyImage: 'https://images.unsplash.com/photo-1579584425555-c3ce17fd4351?w=600&q=80'
   },
   seoul: {
-    spotLabel: 'Nソウルタワー',
+    spotLabel: '南山タワー',
     spotImage: SPOT_IMAGES.seoulTower,
     specialtyName: '韓国チキン',
     specialtyImage: 'https://images.unsplash.com/photo-1562967914-608f82629710?w=600&q=80'
@@ -312,7 +312,7 @@ export const LANDMARKS = {
     specialtyImage: 'https://images.unsplash.com/photo-1529692236671-f1f6cf9683ba?w=600&q=80'
   },
   shanghai: {
-    spotLabel: '外滩のスカイライン',
+    spotLabel: '外灘のスカイライン',
     spotImage: SPOT_IMAGES.shanghaiBund,
     specialtyName: '小籠包',
     specialtyImage: 'https://images.unsplash.com/photo-1563245372-28a3f4ccb4b5?w=600&q=80'

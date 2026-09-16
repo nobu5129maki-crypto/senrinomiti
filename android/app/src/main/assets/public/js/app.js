@@ -84,7 +84,7 @@ import {
 
 } from './routes.js';
 
-import { initMap, renderRoute, destroyMap, invalidateMapSize } from './map.js';
+import { initMap, renderRoute, destroyMap, invalidateMapSize, initPickerMap, setPickerClickHandler, setPickerActiveTarget, getPickerActiveTarget, setPickerModeView, setPickerMarkers, invalidatePickerMapSize, toPickerLatLng } from './map.js';
 import {
   celebrateGoal,
   celebrateCheckpoint,
@@ -100,6 +100,7 @@ import { getSpotById, spotToPlace, attachSpotMetadata, findResolvableSpot } from
 
 import * as pedometer from './pedometer.js';
 import * as nativeSteps from './native-steps.js';
+import { repairInflatedDeviceBaseline } from './step-credit.js';
 import { initUpdateChecker } from './update-check.js';
 import { initAndroidInstallPrompt } from './android-install.js';
 import { initIosInstallPrompt } from './ios-install.js';
@@ -207,6 +208,8 @@ async function init() {
 
   pedometer.setCreditedTodayGetter?.(() => state.pedometerTodaySteps || 0);
   pedometer.setJourneyActiveGetter?.(() => Boolean(state.route));
+  pedometer.setJourneyStartedAtGetter?.(() => state.journeyStartedAt || null);
+  pedometer.setDeviceBaselineGetter?.(() => getPedometerDeviceBaseline(state));
 
   initInstallPrompt();
   initAndroidInstallPrompt();
@@ -310,7 +313,11 @@ function getDisplayedDeviceStepsToday() {
 }
 
 async function startPedometerForUser() {
-  await alignPedometerBaselineForJourney();
+  if (state.route) {
+    restorePedometerSessionBaseline();
+  } else {
+    await alignPedometerBaselineForJourney();
+  }
   const result = await pedometer.startAutoDailyTracking(handlePedometerUpdate);
   if (result.ok) {
     state = setPedometerAutoTrack(state, true);
@@ -358,6 +365,9 @@ function exposeApi() {
     state = setMode(state, mode);
     selectedPlaces.start = null;
     selectedPlaces.end = null;
+    clearMapPickSelectionUi();
+    setPickerModeView(mode);
+    setPickerMarkers(null, null);
     refreshUI();
   };
   window.__senriOnTab = onTabViewChanged;
@@ -469,7 +479,7 @@ async function restorePedometer() {
 
   if (!shouldAutoStart) return;
 
-  if (wasTracking && state.route && getPedometerDeviceBaseline(state) > 0) {
+  if (state.route) {
     restorePedometerSessionBaseline();
   } else {
     await alignPedometerBaselineForJourney();
@@ -523,7 +533,6 @@ async function handlePedometerUpdate({ sessionSteps, flush, at, pendingDay }) {
       }
       updatePedometerUI();
     } else {
-      await alignPedometerBaselineForJourney();
       updatePedometerUI();
     }
 
@@ -648,6 +657,10 @@ function onTabViewChanged(name) {
   if (name === 'collection') {
     ensureJourneyRecorded();
     renderCollection();
+  }
+
+  if (name === 'setup') {
+    ensureSetupPickerMap({ resetView: !selectedPlaces.start && !selectedPlaces.end });
   }
 
   if (name === 'dashboard') {
@@ -776,6 +789,14 @@ function bindPedometer() {
 
 
 function restorePedometerSessionBaseline() {
+  const repaired = repairInflatedDeviceBaseline({
+    deviceBaseline: getPedometerDeviceBaseline(state),
+    pedometerTodaySteps: state.pedometerTodaySteps || 0,
+    lastNativeTotal: getPedometerLastNativeTotal(state)
+  });
+  if (repaired !== getPedometerDeviceBaseline(state)) {
+    state = setPedometerDeviceBaseline(state, repaired);
+  }
   pedometer.restoreSession(getPedometerLastNativeTotal(state));
 }
 
@@ -1335,6 +1356,8 @@ function bindSetup() {
 
   bindLocationField('end', '#custom-end', '#end-suggestions', '#end-selected', '#btn-end-gps');
 
+  bindMapPicker();
+
 
 
   $('#stride-input').addEventListener('change', (e) => {
@@ -1357,6 +1380,129 @@ function bindSetup() {
 
   });
 
+}
+
+
+
+function bindMapPicker() {
+  const pickStartBtn = $('#btn-pick-start');
+  const pickEndBtn = $('#btn-pick-end');
+  if (!pickStartBtn || !pickEndBtn) return;
+
+  pickStartBtn.addEventListener('click', () => toggleMapPickTarget('start'));
+  pickEndBtn.addEventListener('click', () => toggleMapPickTarget('end'));
+
+  setPickerClickHandler(async ({ target, lat, lng }) => {
+    await applyMapPickedPlace(target, lat, lng);
+  });
+}
+
+
+
+function ensureSetupPickerMap({ resetView = false } = {}) {
+  initPickerMap('setup-map');
+  if (resetView) setPickerModeView(state.mode);
+  setPickerMarkers(selectedPlaces.start, selectedPlaces.end, { mode: state.mode });
+  requestAnimationFrame(() => {
+    invalidatePickerMapSize();
+    setTimeout(() => invalidatePickerMapSize(), 120);
+  });
+}
+
+function showSelectedPlaceOnMap(key) {
+  const place = selectedPlaces[key];
+  if (place == null) return;
+  ensureSetupPickerMap();
+  setPickerMarkers(selectedPlaces.start, selectedPlaces.end, {
+    focus: key,
+    mode: state.mode
+  });
+}
+
+
+
+function toggleMapPickTarget(target) {
+  ensureSetupPickerMap();
+  const next = getPickerActiveTarget() === target ? null : target;
+  setPickerActiveTarget(next);
+  updateMapPickUi(next);
+}
+
+
+
+function clearMapPickSelectionUi() {
+  setPickerActiveTarget(null);
+  updateMapPickUi(null);
+}
+
+
+
+function updateMapPickUi(activeTarget) {
+  const pickStartBtn = $('#btn-pick-start');
+  const pickEndBtn = $('#btn-pick-end');
+  const status = $('#map-pick-status');
+
+  pickStartBtn?.classList.toggle('is-active', activeTarget === 'start');
+  pickEndBtn?.classList.toggle('is-active', activeTarget === 'end');
+
+  if (!status) return;
+  if (activeTarget === 'start') {
+    status.textContent = '地図をタップして起点を選んでください';
+  } else if (activeTarget === 'end') {
+    status.textContent = '地図をタップして目的地を選んでください';
+  } else {
+    status.textContent = '';
+  }
+}
+
+
+
+async function applyMapPickedPlace(target, lat, lng) {
+  const status = $('#map-pick-status');
+  const pickStartBtn = $('#btn-pick-start');
+  const pickEndBtn = $('#btn-pick-end');
+  const busyBtn = target === 'start' ? pickStartBtn : pickEndBtn;
+
+  if (busyBtn) busyBtn.disabled = true;
+  if (status) status.textContent = '地点名を取得しています…';
+
+  try {
+    let place = await reverseGeocode(lat, lng);
+    if (!place) {
+      place = {
+        id: `map-${lat.toFixed(5)}-${lng.toFixed(5)}`,
+        name: `${lat.toFixed(4)}, ${lng.toFixed(4)}`,
+        displayName: `地図で選択（${lat.toFixed(4)}, ${lng.toFixed(4)}）`,
+        lat,
+        lng,
+        isLandmark: false,
+        isAddress: false
+      };
+    } else {
+      place = {
+        ...place,
+        lat,
+        lng
+      };
+    }
+
+    const input = $(target === 'start' ? '#custom-start' : '#custom-end');
+    const selectedEl = $(target === 'start' ? '#start-selected' : '#end-selected');
+    const list = $(target === 'start' ? '#start-suggestions' : '#end-suggestions');
+    selectPlace(target, place, input, selectedEl, list);
+    setPickerActiveTarget(null);
+    updateMapPickUi(null);
+    if (status) {
+      status.textContent = target === 'start'
+        ? `起点を設定: ${place.name}`
+        : `目的地を設定: ${place.name}`;
+    }
+  } catch (err) {
+    if (status) status.textContent = '';
+    alert(err.message || '地図からの地点取得に失敗しました。');
+  } finally {
+    if (busyBtn) busyBtn.disabled = false;
+  }
 }
 
 
@@ -1497,6 +1643,7 @@ function bindLocationField(key, inputSel, listSel, selectedSel, gpsBtnSel) {
 
     selectedPlaces[key] = null;
     selectedEl.hidden = true;
+    setPickerMarkers(selectedPlaces.start, selectedPlaces.end);
     clearTimeout(searchTimer);
     searchTimer = setTimeout(() => searchAndShow(input.value, list, key), 400);
   });
@@ -1504,6 +1651,7 @@ function bindLocationField(key, inputSel, listSel, selectedSel, gpsBtnSel) {
   input.addEventListener('compositionend', () => {
     selectedPlaces[key] = null;
     selectedEl.hidden = true;
+    setPickerMarkers(selectedPlaces.start, selectedPlaces.end);
     clearTimeout(searchTimer);
     searchTimer = setTimeout(() => searchAndShow(input.value, list, key), 50);
   });
@@ -1523,53 +1671,79 @@ function bindLocationField(key, inputSel, listSel, selectedSel, gpsBtnSel) {
 
 
   gpsBtn.addEventListener('click', async () => {
-
-    gpsBtn.disabled = true;
-
-    gpsBtn.textContent = '…';
-
-    try {
-
-      const pos = await getCurrentPosition();
-
-      const place = await reverseGeocode(pos.lat, pos.lng);
-
-      if (!place) throw new Error('住所の取得に失敗しました。');
-
-      selectPlace(key, place, input, selectedEl, list);
-
-    } catch (err) {
-
-      alert(err.message);
-
-    } finally {
-
-      gpsBtn.disabled = false;
-
-      gpsBtn.textContent = '📍';
-
+    const pickedFromList = placeFromVisibleSuggestions(list);
+    if (pickedFromList) {
+      selectPlace(key, pickedFromList, input, selectedEl, list);
+      return;
     }
 
+    const selected = selectedPlaces[key];
+    const typed = input.value.trim();
+    if (toPickerLatLng(selected) && (
+      !typed ||
+      typed === selected.name ||
+      isSamePlaceQuery(typed, selected)
+    )) {
+      showSelectedPlaceOnMap(key);
+      list.hidden = true;
+      return;
+    }
+
+    gpsBtn.disabled = true;
+    gpsBtn.textContent = '…';
+    try {
+      const pos = await getCurrentPosition();
+      const place = await reverseGeocode(pos.lat, pos.lng);
+      if (!place) throw new Error('住所の取得に失敗しました。');
+      selectPlace(key, place, input, selectedEl, list);
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      gpsBtn.disabled = false;
+      gpsBtn.textContent = '📍';
+    }
   });
 
 }
 
 
 
+function placeFromVisibleSuggestions(listEl) {
+  if (!listEl || listEl.hidden) return null;
+  const active = listEl.querySelector('li.active:not(.loading):not(.no-result)')
+    || listEl.querySelector('li:not(.loading):not(.no-result)');
+  return active?._place || null;
+}
+
 function renderSuggestionList(results, listEl, key) {
   listEl.innerHTML = '';
 
   results.forEach((place) => {
     const li = document.createElement('li');
+    li._place = place;
     li.innerHTML = `
-      <span class="suggestion-name">${place.name}${place.isArea ? '<span class="spot-tag">地域</span>' : ''}${place.isSpot ? '<span class="spot-tag">名所</span>' : ''}${place.isLandmark ? '<span class="spot-tag">観光</span>' : ''}${place.isAddress ? '<span class="spot-tag">住所</span>' : ''}</span>
-      <span class="suggestion-detail">${place.displayName}</span>
+      <div class="suggestion-text">
+        <span class="suggestion-name">${place.name}${place.isArea ? '<span class="spot-tag">地域</span>' : ''}${place.isSpot ? '<span class="spot-tag">名所</span>' : ''}${place.isLandmark ? '<span class="spot-tag">観光</span>' : ''}${place.isAddress ? '<span class="spot-tag">住所</span>' : ''}</span>
+        <span class="suggestion-detail">${place.displayName}</span>
+      </div>
+      <button type="button" class="suggestion-pin" title="地図にピンを立てる" aria-label="${place.name}にピンを立てる">📍</button>
     `;
 
-    li.addEventListener('click', () => {
+    const pick = () => {
       const input = key === 'start' ? $('#custom-start') : $('#custom-end');
       const selectedEl = key === 'start' ? $('#start-selected') : $('#end-selected');
       selectPlace(key, place, input, selectedEl, listEl);
+    };
+
+    li.addEventListener('mouseenter', () => {
+      listEl.querySelectorAll('li.active').forEach((el) => el.classList.remove('active'));
+      li.classList.add('active');
+    });
+    li.addEventListener('click', pick);
+    li.querySelector('.suggestion-pin')?.addEventListener('click', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      pick();
     });
 
     listEl.appendChild(li);
@@ -1609,20 +1783,16 @@ async function searchAndShow(query, listEl, key) {
 
 
 function selectPlace(key, place, input, selectedEl, listEl) {
-
   selectedPlaces[key] = {
     ...attachSpotMetadata(place),
-    queryText: normalizeJaAddressQuery(input.value.trim()) || input.value.trim()
+    queryText: normalizeJaAddressQuery(input.value.trim()) || input.value.trim() || place.name
   };
 
   input.value = place.name;
-
   selectedEl.textContent = `📍 ${place.displayName}`;
-
   selectedEl.hidden = false;
-
   listEl.hidden = true;
-
+  showSelectedPlaceOnMap(key);
 }
 
 

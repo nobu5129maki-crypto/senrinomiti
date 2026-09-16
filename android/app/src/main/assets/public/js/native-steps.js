@@ -462,6 +462,24 @@ export async function getPendingSyncDays() {
   }
 }
 
+export async function getHistoricalDays(fromDateKey, toDateKey) {
+  if (!fromDateKey || !toDateKey) return [];
+  const daily = await resolveDailyPlugin();
+  if (daily?.getHistoricalDays) {
+    try {
+      const result = await daily.getHistoricalDays({ from: fromDateKey, to: toDateKey });
+      return Array.isArray(result?.days) ? result.days : [];
+    } catch {
+      /* fall through */
+    }
+  }
+  const pending = await getPendingSyncDays();
+  return pending.filter((item) => {
+    const date = item?.date;
+    return date && date >= fromDateKey && date <= toDateKey;
+  });
+}
+
 export async function acknowledgePendingDay(dateKey) {
   const daily = await resolveDailyPlugin();
   if (!daily?.acknowledgePendingDay || !dateKey) return;

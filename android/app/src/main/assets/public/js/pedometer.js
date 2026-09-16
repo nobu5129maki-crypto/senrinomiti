@@ -8,8 +8,21 @@
 import * as nativeSteps from './native-steps.js';
 import * as googleFit from './google-fit-sync.js';
 import { todayKey } from './geo.js';
-import { dateKeyToEndMs } from './date-utils.js';
+import { dateKeyToEndMs, shiftDateKey } from './date-utils.js';
 import { createTimestampTracker } from './timestamp-tracker.js';
+import {
+  computeCatchUpDelta,
+  restoreTodayWatermark,
+  catchUpDateWindow,
+  journeyStartDateKey,
+  journeyTodayWatermark,
+  resolveCatchUpWatermarks,
+  getCreditedForDate,
+  setCreditedForDate,
+  hasAnyCreditedDate,
+  resetCreditedByDate,
+  mergeMarkerIntoCredited
+} from './step-credit.js';
 
 const NATIVE_DAILY_DATE_KEY = 'senri-daily-native-date';
 const NATIVE_DAILY_TOTAL_KEY = 'senri-daily-native-total';
@@ -54,10 +67,15 @@ let autoTrackMode = false;
 let lastKnownDay = todayKey();
 let creditedTodayGetter = null;
 let journeyActiveGetter = null;
+let journeyStartedAtGetter = null;
+let deviceBaselineGetter = null;
 /** ベースライン同期直後は差分計上を1回スキップ（停止→再開の誤計上防止） */
 let suppressNextDailyCredit = false;
 /** 新目的地設定中など、旅への歩数加算を一時停止 */
 let creditPaused = false;
+/** 本日分の同期済み水位（旅加算の完了を待たずに進める） */
+let creditedTodayMemory = null;
+let creditedTodayMemoryDate = '';
 
 function isAndroid() {
   const ua = navigator.userAgent || '';
@@ -239,64 +257,8 @@ export function resumeCreditAfterNewJourney() {
   discardPendingSteps();
 }
 
-function handleNativeUpdate({ sessionSteps: nativeSession, delta }) {
-  if (delta != null) {
-    lastNativeSessionSteps = nativeSession;
-    sessionSteps = nativeSession;
-    if (sensorMode === 'native') {
-      setNativeDailyMarker(todayKey(), nativeSession);
-    }
-    if (creditPaused || !isJourneyActive() || suppressNextDailyCredit) {
-      if (!creditPaused) suppressNextDailyCredit = false;
-      pendingSteps = 0;
-      if (onStepsCallback) {
-        onStepsCallback({ sessionSteps, pendingSteps: 0 });
-      }
-      return;
-    }
-    // 再開直後の「本日歩数まるごと」を旅へ加算しない
-    if (delta > 0 && delta >= nativeSession && nativeSession >= 500) {
-      pendingSteps = 0;
-      if (onStepsCallback) {
-        onStepsCallback({ sessionSteps, pendingSteps: 0 });
-      }
-      return;
-    }
-    if (delta > 0) {
-      pendingSteps += delta;
-      lastStepTime = Date.now();
-      notifyStep();
-    } else if (onStepsCallback) {
-      onStepsCallback({ sessionSteps, pendingSteps });
-    }
-    return;
-  }
-
-  const stepDelta = nativeSession - lastNativeSessionSteps;
-  if (stepDelta > 0) {
-    lastNativeSessionSteps = nativeSession;
-    sessionSteps = nativeSession;
-    if (creditPaused) {
-      pendingSteps = 0;
-      if (onStepsCallback) onStepsCallback({ sessionSteps, pendingSteps: 0 });
-    } else if (isJourneyActive()) {
-      pendingSteps += stepDelta;
-      lastStepTime = Date.now();
-      notifyStep();
-    } else if (onStepsCallback) {
-      onStepsCallback({ sessionSteps, pendingSteps: 0 });
-    }
-    if (sensorMode === 'native') {
-      setNativeDailyMarker(todayKey(), nativeSession);
-    }
-  } else if (nativeSession !== lastNativeSessionSteps) {
-    lastNativeSessionSteps = nativeSession;
-    sessionSteps = nativeSession;
-    if (sensorMode === 'native') {
-      setNativeDailyMarker(todayKey(), nativeSession);
-    }
-    if (onStepsCallback) onStepsCallback({ sessionSteps, pendingSteps });
-  }
+function handleNativeUpdate({ sessionSteps: nativeSession }) {
+  applySourceDay(todayKey(), nativeSession);
 }
 
 function getSyncIntervalMs() {
@@ -455,61 +417,168 @@ function isJourneyActive() {
   return journeyActiveGetter ? journeyActiveGetter() : false;
 }
 
+function getJourneyStartedAt() {
+  return journeyStartedAtGetter ? journeyStartedAtGetter() : null;
+}
+
+function getDeviceBaseline() {
+  return deviceBaselineGetter ? Math.max(0, Math.floor(Number(deviceBaselineGetter()) || 0)) : 0;
+}
+
+function allowBackgroundCatchUp() {
+  return Boolean(
+    autoTrackMode
+    || enabled
+    || hasAnyCreditedDate()
+    || getNativeDailyMarker().date
+    || googleFit.getDailySyncMarker?.().date
+  );
+}
+
+function getJourneyTodaySteps() {
+  return creditedTodayGetter ? Math.max(0, Math.floor(Number(creditedTodayGetter()) || 0)) : 0;
+}
+
+function journeyWatermarkForToday() {
+  const day = todayKey();
+  return journeyTodayWatermark({
+    dateKey: day,
+    today: day,
+    pedometerTodaySteps: getJourneyTodaySteps(),
+    deviceBaseline: getDeviceBaseline(),
+    journeyStartedAt: getJourneyStartedAt()
+  });
+}
+
+function seedCreditedMemoryFromJourney() {
+  const day = todayKey();
+  creditedTodayMemoryDate = day;
+  creditedTodayMemory = journeyWatermarkForToday();
+}
+
+function creditedWatermarkFor(dateKey, sourceTotal = 0) {
+  const day = todayKey();
+  if (creditedTodayMemoryDate && creditedTodayMemoryDate !== day) {
+    creditedTodayMemory = null;
+    creditedTodayMemoryDate = '';
+  }
+
+  if (dateKey === day) {
+    const marks = resolveCatchUpWatermarks({
+      dateKey,
+      today: day,
+      pedometerTodaySteps: getJourneyTodaySteps(),
+      deviceBaseline: getDeviceBaseline(),
+      journeyStartedAt: getJourneyStartedAt(),
+      memoryCredited: creditedTodayMemoryDate === day ? creditedTodayMemory : null,
+      sourceTotal
+    });
+    return marks;
+  }
+
+  return {
+    alreadyCredited: getCreditedForDate(dateKey, 0),
+    floorCredited: floorForDate(dateKey),
+    journeyWatermark: 0
+  };
+}
+
+function persistCredited(dateKey, total) {
+  const day = todayKey();
+  setCreditedForDate(dateKey, total, day);
+  if (dateKey === day) {
+    setNativeDailyMarker(day, total);
+    googleFit.setDailySyncMarker(day, total);
+  }
+}
+
+function floorForDate(dateKey) {
+  const startDay = journeyStartDateKey(getJourneyStartedAt());
+  if (startDay && dateKey === startDay) return getDeviceBaseline();
+  return 0;
+}
+
+function applySourceDay(dateKey, sourceTotal, { pendingDay = false } = {}) {
+  const deviceToday = Math.max(0, Math.floor(Number(sourceTotal) || 0));
+  const isToday = dateKey === todayKey();
+  if (isToday) {
+    sessionSteps = deviceToday;
+    lastNativeSessionSteps = deviceToday;
+  }
+
+  const marks = creditedWatermarkFor(dateKey, deviceToday);
+  const suppressCredit = creditPaused || !isJourneyActive() || (suppressNextDailyCredit && isToday);
+
+  const result = computeCatchUpDelta({
+    sourceTotal: deviceToday,
+    alreadyCredited: marks.alreadyCredited,
+    floorCredited: marks.floorCredited,
+    suppressCredit,
+    allowBackgroundCatchUp: allowBackgroundCatchUp()
+  });
+
+  const raiseWatermark = !suppressCredit;
+  if (raiseWatermark) {
+    persistCredited(dateKey, result.nextCredited);
+    if (isToday) {
+      creditedTodayMemoryDate = dateKey;
+      creditedTodayMemory = result.nextCredited;
+    }
+  }
+
+  if (creditPaused) {
+    pendingSteps = 0;
+    if (isToday && onStepsCallback) onStepsCallback({ sessionSteps, pendingSteps: 0 });
+    return result;
+  }
+
+  if (suppressNextDailyCredit) {
+    pendingSteps = 0;
+    if (isToday && onStepsCallback) onStepsCallback({ sessionSteps, pendingSteps: 0 });
+    suppressNextDailyCredit = false;
+    return result;
+  }
+
+  if (result.delta > 0 && onStepsCallback) {
+    const at = isToday ? Date.now() : dateKeyToEndMs(dateKey);
+    pendingSteps = 0;
+    lastStepTime = at;
+    onStepsCallback({
+      sessionSteps,
+      flush: result.delta,
+      at,
+      pendingDay: pendingDay ? dateKey : undefined
+    });
+  } else if (result.delta > 0) {
+    pendingSteps += result.delta;
+    lastStepTime = Date.now();
+    notifyStep();
+  } else if (isToday && onStepsCallback) {
+    onStepsCallback({ sessionSteps, pendingSteps });
+  }
+
+  if (pendingDay && result.delta <= 0) {
+    nativeSteps.acknowledgePendingDay?.(dateKey);
+  }
+
+  lastMotionAt = Date.now();
+  return result;
+}
+
 export function clearDailySyncMarkers() {
   const day = todayKey();
+  resetCreditedByDate();
   setNativeDailyMarker(day, 0);
   googleFit.setDailySyncMarker(day, 0);
   sessionSteps = 0;
   lastNativeSessionSteps = 0;
   pendingSteps = 0;
+  creditedTodayMemory = 0;
+  creditedTodayMemoryDate = day;
 }
 
-function applyDailySourceTotal(sourceToday, marker, setMarker) {
-  const day = todayKey();
-  let lastDate = marker.date;
-  let lastTotal = marker.total;
-  if (lastDate !== day) {
-    lastDate = day;
-    lastTotal = 0;
-    setMarker(day, 0);
-  }
-
-  const deviceToday = Math.max(0, Math.floor(Number(sourceToday) || 0));
-  sessionSteps = deviceToday;
-  lastNativeSessionSteps = deviceToday;
-
-  if (creditPaused || !isJourneyActive() || suppressNextDailyCredit) {
-    if (!creditPaused) suppressNextDailyCredit = false;
-    setMarker(day, deviceToday);
-    pendingSteps = 0;
-    if (onStepsCallback) {
-      onStepsCallback({ sessionSteps, pendingSteps: 0 });
-    }
-    lastMotionAt = Date.now();
-    return;
-  }
-
-  const delta = deviceToday - lastTotal;
-  // 水位が空・未同期のまま大きな本日値を受け取った場合は基準合わせのみ（誤一括計上を防ぐ）
-  if (delta > 0 && lastTotal <= 0 && deviceToday >= 500) {
-    setMarker(day, deviceToday);
-    pendingSteps = 0;
-    if (onStepsCallback) {
-      onStepsCallback({ sessionSteps, pendingSteps: 0 });
-    }
-    lastMotionAt = Date.now();
-    return;
-  }
-
-  if (delta > 0) {
-    setMarker(day, deviceToday);
-    pendingSteps += delta;
-    lastStepTime = Date.now();
-    notifyStep();
-  } else if (onStepsCallback) {
-    onStepsCallback({ sessionSteps, pendingSteps });
-  }
-  lastMotionAt = Date.now();
+function applyDailySourceTotal(sourceToday) {
+  applySourceDay(todayKey(), sourceToday);
 }
 
 export function setCreditedTodayGetter(getter) {
@@ -520,46 +589,105 @@ export function setJourneyActiveGetter(getter) {
   journeyActiveGetter = typeof getter === 'function' ? getter : null;
 }
 
-async function syncPendingDays() {
-  if (!onStepsCallback || !isJourneyActive()) return;
+export function setJourneyStartedAtGetter(getter) {
+  journeyStartedAtGetter = typeof getter === 'function' ? getter : null;
+}
+
+export function setDeviceBaselineGetter(getter) {
+  deviceBaselineGetter = typeof getter === 'function' ? getter : null;
+}
+
+async function syncMissedDays() {
+  if (!onStepsCallback || !isJourneyActive() || creditPaused || suppressNextDailyCredit) return;
+
+  const today = todayKey();
+  const window = catchUpDateWindow({
+    journeyStartedAt: getJourneyStartedAt(),
+    today
+  });
+  const startDay = journeyStartDateKey(getJourneyStartedAt()) || window.from;
+  const from = window.from || startDay;
+  const to = window.to || shiftDateKey(today, -1);
+
+  const byDate = new Map();
+
   try {
     const pending = await nativeSteps.getPendingSyncDays();
-    for (const item of pending) {
-      const steps = Math.max(0, Math.floor(Number(item?.steps) || 0));
+    for (const item of pending || []) {
       const dateKey = item?.date;
-      if (!dateKey || steps <= 0) continue;
-      // 新目的地設定中は過去日の未同期分を新旅に載せない（承認だけして破棄）
-      if (creditPaused) {
-        await nativeSteps.acknowledgePendingDay?.(dateKey);
-        continue;
-      }
-      onStepsCallback({
-        sessionSteps: 0,
-        flush: steps,
-        at: dateKeyToEndMs(dateKey),
-        pendingDay: dateKey
-      });
+      const steps = Math.max(0, Math.floor(Number(item?.steps) || 0));
+      if (dateKey && steps > 0) byDate.set(dateKey, Math.max(byDate.get(dateKey) || 0, steps));
     }
   } catch {
     /* ignore */
   }
+
+  if (from && to && from <= to) {
+    try {
+      const historical = await nativeSteps.getHistoricalDays?.(from, to);
+      for (const item of historical || []) {
+        const dateKey = item?.date;
+        const steps = Math.max(0, Math.floor(Number(item?.steps) || 0));
+        if (dateKey && steps > 0) byDate.set(dateKey, Math.max(byDate.get(dateKey) || 0, steps));
+      }
+    } catch {
+      /* ignore */
+    }
+
+    if (googleFit.canUseBackgroundSync()) {
+      try {
+        const historical = await googleFit.getHistoricalDays(from, to);
+        for (const item of historical || []) {
+          const dateKey = item?.date;
+          const steps = Math.max(0, Math.floor(Number(item?.steps) || 0));
+          if (dateKey && steps > 0) byDate.set(dateKey, Math.max(byDate.get(dateKey) || 0, steps));
+        }
+      } catch {
+        /* ignore */
+      }
+    }
+  }
+
+  const dates = new Set(window.days);
+  for (const dateKey of byDate.keys()) dates.add(dateKey);
+  for (const dateKey of [...dates].sort()) {
+    if (!dateKey || dateKey >= today) continue;
+    if (startDay && dateKey < startDay) continue;
+    const steps = byDate.get(dateKey);
+    if (!steps) continue;
+    applySourceDay(dateKey, steps, { pendingDay: true });
+  }
+}
+
+async function readTodaySourceTotal() {
+  let nativeToday = 0;
+  let fitToday = 0;
+
+  if (await nativeSteps.isNativeStepCounterAvailable()) {
+    try {
+      nativeToday = Math.max(0, Math.floor(Number(await nativeSteps.getTodaySteps()) || 0));
+    } catch {
+      nativeToday = 0;
+    }
+  }
+
+  if (googleFit.canUseBackgroundSync()) {
+    try {
+      fitToday = Math.max(0, Math.floor(Number(await googleFit.getTodaySteps()) || 0));
+    } catch {
+      fitToday = 0;
+    }
+  }
+
+  return Math.max(nativeToday, fitToday);
 }
 
 async function syncDailySteps() {
   if (!enabled && !autoTrackMode) return;
 
   try {
-    await syncPendingDays();
-
-    if (googleFit.canUseBackgroundSync()) {
-      const sourceToday = await googleFit.getTodaySteps();
-      applyDailySourceTotal(sourceToday, googleFit.getDailySyncMarker(), googleFit.setDailySyncMarker);
-      return;
-    }
-    if (await nativeSteps.isNativeStepCounterAvailable()) {
-      const sourceToday = await nativeSteps.getTodaySteps();
-      applyDailySourceTotal(sourceToday, getNativeDailyMarker(), setNativeDailyMarker);
-    }
+    await syncMissedDays();
+    applyDailySourceTotal(await readTodaySourceTotal());
   } catch {
     /* 通信エラー等は次回再試行 */
   }
@@ -597,7 +725,6 @@ export async function catchUpAfterBackground(maxAttempts = 5) {
   for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
     await nativeSteps.ensureBackgroundService?.();
     await nativeSteps.catchUpTodaySteps?.();
-    await syncPendingDays();
     await syncDailySteps();
     flushPending();
     if (attempt < maxAttempts - 1) {
@@ -611,8 +738,11 @@ export async function onDayRolled() {
   lastKnownDay = day;
   sessionSteps = 0;
   lastNativeSessionSteps = 0;
+  creditedTodayMemory = 0;
+  creditedTodayMemoryDate = day;
   googleFit.resetDailySyncMarker(day, 0);
   setNativeDailyMarker(day, 0);
+  setCreditedForDate(day, 0, day);
   await syncDailySteps();
 }
 
@@ -998,6 +1128,14 @@ export async function startAutoDailyTracking(onSteps) {
   onStepsCallback = onSteps;
   enabled = true;
 
+  const nativeMarker = getNativeDailyMarker();
+  if (nativeMarker.date) mergeMarkerIntoCredited(nativeMarker.date, nativeMarker.total);
+  const fitMarker = googleFit.getDailySyncMarker?.() || { date: '', total: 0 };
+  if (fitMarker.date) mergeMarkerIntoCredited(fitMarker.date, fitMarker.total);
+
+  seedCreditedMemoryFromJourney();
+  suppressNextDailyCredit = false;
+
   await nativeSteps.waitForNativeReady?.();
 
   if (isAndroidNativeApp() || (isNativeAppShell() && isIosDevice())) {
@@ -1090,8 +1228,7 @@ function syncBaselineBeforeStop() {
     marker.date === day ? marker.total : 0,
     sessionSteps
   );
-  setNativeDailyMarker(day, baseline);
-  googleFit.setDailySyncMarker(day, baseline);
+  persistCredited(day, baseline);
   sessionSteps = baseline;
   lastNativeSessionSteps = baseline;
 }
@@ -1104,17 +1241,14 @@ export async function syncBaselineToDevice() {
   let deviceToday = Math.max(0, Math.floor(sessionSteps));
 
   try {
-    if (googleFit.canUseBackgroundSync()) {
-      deviceToday = Math.max(0, Math.floor(Number(await googleFit.getTodaySteps()) || 0));
-    } else if (await nativeSteps.isNativeStepCounterAvailable()) {
-      deviceToday = Math.max(0, Math.floor(Number(await nativeSteps.getTodaySteps()) || 0));
-    }
+    deviceToday = Math.max(deviceToday, await readTodaySourceTotal());
   } catch {
     /* 読み取れない場合は現在値を維持 */
   }
 
-  setNativeDailyMarker(day, deviceToday);
-  googleFit.setDailySyncMarker(day, deviceToday);
+  persistCredited(day, deviceToday);
+  creditedTodayMemoryDate = day;
+  creditedTodayMemory = deviceToday;
   sessionSteps = deviceToday;
   lastNativeSessionSteps = deviceToday;
   pendingSteps = 0;
@@ -1143,12 +1277,20 @@ export function getElapsedMs() {
 
 export function restoreSession(deviceBaseline = 0) {
   const day = todayKey();
-  const baseline = Math.max(0, Math.floor(Number(deviceBaseline) || 0));
-  sessionSteps = baseline;
-  lastNativeSessionSteps = baseline;
+  const marker = getNativeDailyMarker();
+  if (marker.date) mergeMarkerIntoCredited(marker.date, marker.total);
+  const restored = restoreTodayWatermark({
+    today: day,
+    markerDate: marker.date,
+    markerTotal: marker.total,
+    lastNativeTotal: deviceBaseline
+  });
   pendingSteps = 0;
-  setNativeDailyMarker(day, baseline);
-  googleFit.setDailySyncMarker(day, baseline);
+  sessionSteps = restored.sessionSteps;
+  lastNativeSessionSteps = restored.sessionSteps;
+  suppressNextDailyCredit = false;
+  seedCreditedMemoryFromJourney();
+  nativeSteps.syncPollBaseline?.(creditedTodayMemory || 0);
 }
 
 export function flush() {
@@ -1250,6 +1392,8 @@ export async function resetSessionBaseline() {
   lastNativeSessionSteps = 0;
   pendingSteps = 0;
   const day = todayKey();
+  creditedTodayMemory = 0;
+  creditedTodayMemoryDate = day;
   googleFit.resetDailySyncMarker(day, 0);
   setNativeDailyMarker(day, 0);
   await nativeSteps.resetNativeSessionBaseline();

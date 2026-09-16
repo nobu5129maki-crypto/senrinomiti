@@ -4,7 +4,7 @@
  */
 
 import { APP_CONFIG } from './app-config.js';
-import { todayStartMs } from './date-utils.js';
+import { todayStartMs, dateKeyToStartMs, dateKeyToEndMs, todayKeyFromDate } from './date-utils.js';
 
 const SCOPE = 'https://www.googleapis.com/auth/fitness.activity.read';
 const TOKEN_KEY = 'senri-google-fit-token';
@@ -274,6 +274,57 @@ export async function getSessionSteps() {
 export async function getTodaySteps() {
   if (!isConnected()) return 0;
   return getStepsBetween(todayStartMs(), Date.now());
+}
+
+export async function getStepsForDate(dateKey) {
+  const startMs = dateKeyToStartMs(dateKey);
+  const endMs = Math.min(dateKeyToEndMs(dateKey), Date.now());
+  if (!dateKey || endMs <= startMs) return 0;
+  return getStepsBetween(startMs, endMs);
+}
+
+export async function getHistoricalDays(fromDateKey, toDateKey) {
+  if (!fromDateKey || !toDateKey || fromDateKey > toDateKey) return [];
+  if (!isConnected()) return [];
+
+  const startMs = dateKeyToStartMs(fromDateKey);
+  const endMs = Math.min(dateKeyToEndMs(toDateKey), Date.now());
+  if (endMs <= startMs) return [];
+
+  const token = await ensureToken();
+  const res = await fetch(FIT_AGGREGATE_URL, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      aggregateBy: [{
+        dataTypeName: 'com.google.step_count.delta',
+        dataSourceId: ESTIMATED_STEPS
+      }],
+      bucketByTime: { durationMillis: 86400000 },
+      startTimeMillis: Math.floor(startMs),
+      endTimeMillis: Math.floor(endMs)
+    })
+  });
+
+  if (res.status === 401) {
+    disconnect();
+    throw new Error('token-expired');
+  }
+  if (!res.ok) throw new Error('fit-api-error');
+
+  const payload = await res.json();
+  const days = [];
+  for (const bucket of payload?.bucket || []) {
+    const start = Number(bucket.startTimeMillis || 0);
+    if (!start) continue;
+    const date = todayKeyFromDate(new Date(start));
+    const steps = sumStepPoints({ bucket: [bucket] });
+    if (date && steps > 0) days.push({ date, steps });
+  }
+  return days;
 }
 
 export function getDailySyncMarker() {

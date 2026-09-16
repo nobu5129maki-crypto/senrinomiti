@@ -229,6 +229,7 @@
   <main class="shell">
     <img class="app-icon" src="./icons/icon-192.png" width="72" height="72" alt="">
     <h1>千里の道も一歩から</h1>
+    <p class="device" id="app-version-label">Android 版 v1.0.32</p>
 
     <section class="panel panel-android">
       <p class="device">Android</p>
@@ -329,6 +330,7 @@
       ANDROID_PACKAGE_ID,
       PRODUCTION_URL,
     } from './js/distribution-config.js';
+    import { APP_VERSION } from './js/app-version.js';
     import {
       appDetailsIntentCandidates,
       bindIntentControl,
@@ -346,6 +348,8 @@
     const permissionBtn = document.getElementById('open-permission');
     const uninstallBtn = document.getElementById('open-uninstall');
     const inappWarn = document.getElementById('inapp-warn');
+    const versionLabel = document.getElementById('app-version-label');
+    if (versionLabel) versionLabel.textContent = `Android 版 v${APP_VERSION}`;
     const pageUrl = `${PRODUCTION_URL || location.origin}/install.html`;
     const apkBase = ANDROID_APK_URL || `${PRODUCTION_URL || location.origin}/download/senrinomiti.apk`;
     const apkUrl = apkBase.includes('?') ? `${apkBase}&t=${Date.now()}` : `${apkBase}?t=${Date.now()}`;
@@ -367,7 +371,7 @@
           downloadBtn.href = apkUrl;
           downloadBtn.rel = 'noopener';
           downloadBtn.removeAttribute('download');
-          downloadBtn.textContent = 'senrinomiti.apk';
+          downloadBtn.textContent = `senrinomiti.apk（v${APP_VERSION}）`;
         }
       }
 
