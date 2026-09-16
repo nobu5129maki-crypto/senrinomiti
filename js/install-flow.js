@@ -10,6 +10,10 @@ export function detectBrowserPackage() {
   return 'com.android.chrome';
 }
 
+export function isAndroidUser(ua = navigator.userAgent || '') {
+  return /Android/i.test(ua);
+}
+
 export function isAndroidInAppBrowser() {
   const ua = navigator.userAgent || '';
   if (!/Android/i.test(ua)) return false;
@@ -18,6 +22,19 @@ export function isAndroidInAppBrowser() {
   if (/Notes?|note\.com|Hatena/i.test(ua)) return true;
   if (/Chrome\/\d+/i.test(ua) && !/; wv\)/i.test(ua)) return false;
   return true;
+}
+
+function intentUrl(hostPath, extras = '') {
+  return `intent://${hostPath}#Intent;scheme=https;package=com.android.chrome;action=android.intent.action.VIEW;category=android.intent.category.BROWSABLE;launchFlags=0x10000000${extras};end`;
+}
+
+function toHostPath(url) {
+  try {
+    const parsed = new URL(url, 'https://senrinomiti.vercel.app');
+    return `${parsed.host}${parsed.pathname}${parsed.search}${parsed.hash}`;
+  } catch {
+    return String(url || '').replace(/^https?:\/\//, '');
+  }
 }
 
 /** アプリ詳細（アンインストール） */
@@ -40,83 +57,80 @@ export function unknownSourcesIntentCandidates(packageName = detectBrowserPackag
   ];
 }
 
-/** ページを Chrome で開く候補 */
+/** ページを Chrome で開く候補（先頭を <a href> に使う） */
 export function openInChromeCandidates(url) {
-  const raw = String(url || '');
-  const clean = raw.replace(/^https?:\/\//, '');
+  const raw = String(url || 'https://senrinomiti.vercel.app/install.html');
+  const hostPath = toHostPath(raw);
   const encoded = encodeURIComponent(raw);
   return [
-    `intent://${clean}#Intent;scheme=https;package=com.android.chrome;action=android.intent.action.VIEW;S.browser_fallback_url=${encoded};end`,
-    `intent://${clean}#Intent;scheme=https;package=com.android.chrome;end`,
-    `googlechrome://navigate?url=${encoded}`,
+    intentUrl(hostPath, `;S.browser_fallback_url=${encoded}`),
+    intentUrl(hostPath),
+    `googlechrome://${hostPath}`,
   ];
 }
 
-/** 単一 Intent を <a> クリックで開く（location.href 連鎖より確実） */
+/** 同じタップ内で外部アプリを開く（新規 <a> のプログラムクリックは WebView に無視される） */
 export function openHref(href) {
   if (!href) return false;
   try {
-    const a = document.createElement('a');
-    a.href = href;
-    a.rel = 'noopener';
-    a.style.display = 'none';
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
+    window.location.href = href;
     return true;
   } catch {
-    try {
-      window.location.href = href;
-      return true;
-    } catch {
-      return false;
-    }
+    return false;
   }
 }
 
-/**
- * Intent を順に試す。
- * 以前は 600ms ごとに全部飛ばして打ち消し合っていたため、
- * 先頭を開き、ページが残っているときだけ次を試す。
- */
 export function tryOpenHrefs(hrefs) {
   const list = (hrefs || []).filter(Boolean);
   if (!list.length) return false;
-
-  let index = 0;
-  const tryNext = () => {
-    if (index >= list.length) return;
-    openHref(list[index++]);
-    if (index < list.length) {
-      window.setTimeout(() => {
-        // 画面がまだ見えている（遷移できていない）ときだけ次候補
-        if (!document.hidden) tryNext();
-      }, 900);
-    }
-  };
-  tryNext();
-  return true;
+  return openHref(list[0]);
 }
 
-/** ボタン／リンクに Intent をバインド（JS 無効時は href 直リンク） */
-export function bindIntentControl(el, hrefs, { onFail } = {}) {
+/**
+ * ボタン／リンクに Intent をバインド。
+ * アプリ内ブラウザは「ユーザーが押した <a href="intent:">」だけを外部アプリに渡す。
+ * preventDefault や別要素のクリックは無反応になるため、アンカーはネイティブ遷移に任せる。
+ */
+export function bindIntentControl(el, hrefs, { onFail, onClick, ua } = {}) {
   if (!el) return;
   const list = (hrefs || []).filter(Boolean);
   if (list[0] && el.tagName === 'A') {
     el.setAttribute('href', list[0]);
   }
   el.addEventListener('click', (event) => {
-    // <a href="intent:..."> でも、連鎖フォールバックのため prevent して制御する
+    if (typeof onClick === 'function') onClick(event);
+    const android = isAndroidUser(ua ?? navigator.userAgent ?? '');
+    // Android のアプリ内ブラウザは、ユーザーが押した <a href="intent:"> だけを外部へ渡す
+    if (el.tagName === 'A' && list[0] && android) {
+      return;
+    }
     event.preventDefault();
+    if (!android) return;
     const ok = tryOpenHrefs(list);
     if (!ok && typeof onFail === 'function') onFail();
+  });
+}
+
+function withTimeout(promise, ms) {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error('timeout')), ms);
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (err) => {
+        clearTimeout(timer);
+        reject(err);
+      }
+    );
   });
 }
 
 export async function copyText(text) {
   try {
     if (navigator.clipboard?.writeText) {
-      await navigator.clipboard.writeText(text);
+      await withTimeout(navigator.clipboard.writeText(text), 400);
       return true;
     }
   } catch {

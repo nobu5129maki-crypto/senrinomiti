@@ -92,6 +92,11 @@
       text-decoration: none;
       cursor: pointer;
       text-align: center;
+      -webkit-tap-highlight-color: rgba(12, 122, 115, 0.25);
+    }
+    .btn:active {
+      transform: scale(0.98);
+      opacity: 0.88;
     }
     .btn.secondary {
       background: #fff;
@@ -104,6 +109,15 @@
       letter-spacing: 0.02em;
     }
     .btn-row { display: grid; gap: 8px; margin-top: 8px; }
+    .action-feedback {
+      margin: 8px 0 0;
+      font-size: 0.82rem;
+      line-height: 1.5;
+      color: #065954;
+      text-align: left;
+      min-height: 1.2em;
+    }
+    .action-feedback a { color: #0c7a73; word-break: break-all; }
     .apk-note {
       margin: 8px 0 0;
       font-size: 0.78rem;
@@ -240,10 +254,11 @@
       </div>
 
       <div class="btn-row">
-        <a class="btn secondary" id="open-chrome"
-           href="intent://senrinomiti.vercel.app/install.html#Intent;scheme=https;package=com.android.chrome;action=android.intent.action.VIEW;end">Chrome で開く</a>
+        <a class="btn" id="open-chrome"
+           href="intent://senrinomiti.vercel.app/install.html#Intent;scheme=https;package=com.android.chrome;action=android.intent.action.VIEW;category=android.intent.category.BROWSABLE;launchFlags=0x10000000;end">Chrome で開く</a>
         <button type="button" class="btn secondary" id="copy-page">このページのリンクをコピー</button>
       </div>
+      <p class="action-feedback" id="chrome-feedback" aria-live="polite"></p>
 
       <div class="calm" style="margin-top:12px">
         初回だけ Google の確認画面が出ますが、<strong>異常ではありません</strong>。<br>
@@ -380,16 +395,24 @@
         setStatus('先に Chrome でこのページを開いてください。');
       }
 
+      const chromeFeedback = document.getElementById('chrome-feedback');
+      function setChromeFeedback(html) {
+        if (chromeFeedback) chromeFeedback.innerHTML = html;
+        setStatus(html);
+      }
+
       bindIntentControl(openChromeBtn, openInChromeCandidates(pageUrl), {
-        onFail: () => setStatus(`Chrome で次を開いてください:<br><a href="${pageUrl}">${pageUrl}</a>`)
-      });
-      openChromeBtn?.addEventListener('click', async () => {
-        const copied = await copyText(pageUrl);
-        setStatus(
-          copied
-            ? 'リンクをコピーしました。反応しない場合は Chrome を開き、アドレス欄に貼り付けてください。'
-            : `反応しない場合は Chrome で次を開いてください:<br><a href="${pageUrl}">${pageUrl}</a>`
-        );
+        onFail: () => setChromeFeedback(`Chrome で次を開いてください:<br><a href="${pageUrl}">${pageUrl}</a>`),
+        onClick: () => {
+          setChromeFeedback('Chrome を開いています…開かないときは下のコピーを使ってください。');
+          void copyText(pageUrl).then((copied) => {
+            setChromeFeedback(
+              copied
+                ? 'Chrome を開いています。開かないときはリンクをコピー済みです。Chrome のアドレス欄に貼り付けてください。'
+                : `Chrome が開かないときは、このリンクをコピーして Chrome で開いてください:<br><a href="${pageUrl}">${pageUrl}</a>`
+            );
+          });
+        }
       });
 
       copyPageBtn?.addEventListener('click', async () => {
