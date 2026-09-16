@@ -150,19 +150,93 @@ function setImageWithFallback(imgEl, url, fallback = FALLBACK_SPOT) {
 }
 
 async function loadRemoteSpotImage(imgEl, data, name, lat, lng) {
-  if (!imgEl || !data) return;
+  if (!imgEl || !data) return null;
 
   const spotId = data.spotId || data.endSpotId;
   if (isCatalogSpot(spotId, name)) {
     applySpotImage(imgEl, spotId, name, data.spotImage);
-    return;
+    return imgEl.getAttribute('src') || null;
   }
 
-  if (!needsRemoteImage(data, name)) return;
+  if (!needsRemoteImage(data, name)) {
+    return imgEl.getAttribute('src') || null;
+  }
 
   const cityKey = findLandmarkKey(data?.cityKey, name);
   const url = await fetchPlaceImage(name, { lat, lng, cityKey, spotId });
-  if (url) setImageWithFallback(imgEl, url, data.spotImage || FALLBACK_SPOT);
+  if (url) {
+    setImageWithFallback(imgEl, url, data.spotImage || FALLBACK_SPOT);
+    imgEl.classList.remove('spot-image-missing');
+    return url;
+  }
+  return imgEl.getAttribute('src') || null;
+}
+
+function hasVisibleImage(imgEl) {
+  return Boolean(imgEl?.getAttribute('src')) && !imgEl.classList.contains('spot-image-missing');
+}
+
+function showDestinationPreview(place) {
+  const wrap = $('#end-preview');
+  const img = $('#end-preview-img');
+  const caption = $('#end-preview-caption');
+  if (!wrap || !img) return;
+
+  if (!place) {
+    wrap.hidden = true;
+    img.removeAttribute('src');
+    img.alt = '';
+    img.classList.add('spot-image-missing');
+    if (caption) caption.textContent = '';
+    return;
+  }
+
+  applySpotImage(img, place.spotId, place.name, place.spotImage || place.image);
+  img.alt = place.name || '';
+  wrap.hidden = !hasVisibleImage(img);
+  if (caption) caption.textContent = wrap.hidden ? '' : 'この景色を目指して歩こう';
+
+  void loadRemoteSpotImage(img, place, place.name, place.lat, place.lng).then((url) => {
+    if (selectedPlaces.end !== place && selectedPlaces.end?.name !== place.name) return;
+    if (url || hasVisibleImage(img)) {
+      wrap.hidden = false;
+      if (caption) caption.textContent = 'この景色を目指して歩こう';
+    }
+  });
+}
+
+function showDashboardDestinationImage(route) {
+  const wrap = $('#destination-hero');
+  const img = $('#destination-hero-img');
+  if (!wrap || !img) return;
+
+  if (!route) {
+    wrap.hidden = true;
+    img.removeAttribute('src');
+    img.alt = '';
+    img.classList.add('spot-image-missing');
+    return;
+  }
+
+  const dest = getDestinationLandmark(route);
+  const last = route.waypoints?.[route.waypoints.length - 1];
+  const spotId = route.endSpotId || dest?.spotId || last?.spotId;
+  const name = route.endName || dest?.name || last?.name || '';
+  const stored = route.endSpotImage || dest?.spotImage || route.image;
+  applySpotImage(img, spotId, name, stored);
+  img.alt = name;
+  wrap.hidden = !hasVisibleImage(img);
+
+  void loadRemoteSpotImage(
+    img,
+    { spotId, name, spotImage: stored, cityKey: dest?.cityKey },
+    name,
+    last?.lat,
+    last?.lng
+  ).then((url) => {
+    if (state.route !== route) return;
+    if (url || hasVisibleImage(img)) wrap.hidden = false;
+  });
 }
 
 function showOverlay(el) {
@@ -365,6 +439,7 @@ function exposeApi() {
     state = setMode(state, mode);
     selectedPlaces.start = null;
     selectedPlaces.end = null;
+    showDestinationPreview(null);
     clearMapPickSelectionUi();
     setPickerModeView(mode);
     setPickerMarkers(null, null);
@@ -1598,6 +1673,7 @@ async function loadFromSaveSlot(index) {
   state = replaceState(slot.state);
   selectedPlaces.start = null;
   selectedPlaces.end = null;
+  showDestinationPreview(null);
   destroyMap();
   mapInitialized = false;
   checkpointQueue.length = 0;
@@ -1643,6 +1719,7 @@ function bindLocationField(key, inputSel, listSel, selectedSel, gpsBtnSel) {
 
     selectedPlaces[key] = null;
     selectedEl.hidden = true;
+    if (key === 'end') showDestinationPreview(null);
     setPickerMarkers(selectedPlaces.start, selectedPlaces.end);
     clearTimeout(searchTimer);
     searchTimer = setTimeout(() => searchAndShow(input.value, list, key), 400);
@@ -1651,6 +1728,7 @@ function bindLocationField(key, inputSel, listSel, selectedSel, gpsBtnSel) {
   input.addEventListener('compositionend', () => {
     selectedPlaces[key] = null;
     selectedEl.hidden = true;
+    if (key === 'end') showDestinationPreview(null);
     setPickerMarkers(selectedPlaces.start, selectedPlaces.end);
     clearTimeout(searchTimer);
     searchTimer = setTimeout(() => searchAndShow(input.value, list, key), 50);
@@ -1735,6 +1813,17 @@ function renderSuggestionList(results, listEl, key) {
       selectPlace(key, place, input, selectedEl, listEl);
     };
 
+    const resolved = attachSpotMetadata(place) || place;
+    const thumbUrl = resolveSpotImageUrl(resolved.spotId, resolved.name, resolved.spotImage);
+    if (thumbUrl) {
+      const thumb = document.createElement('img');
+      thumb.className = 'suggestion-thumb';
+      thumb.alt = '';
+      thumb.referrerPolicy = 'no-referrer';
+      thumb.src = thumbUrl;
+      li.insertBefore(thumb, li.firstChild);
+    }
+
     li.addEventListener('mouseenter', () => {
       listEl.querySelectorAll('li.active').forEach((el) => el.classList.remove('active'));
       li.classList.add('active');
@@ -1792,6 +1881,7 @@ function selectPlace(key, place, input, selectedEl, listEl) {
   selectedEl.textContent = `📍 ${place.displayName}`;
   selectedEl.hidden = false;
   listEl.hidden = true;
+  if (key === 'end') showDestinationPreview(selectedPlaces.end);
   showSelectedPlaceOnMap(key);
 }
 
@@ -2079,6 +2169,7 @@ async function applyRouteAsync(route) {
   // 直前の目的地選択が残ると画像・spotId が食い違う
   selectedPlaces.start = null;
   selectedPlaces.end = null;
+  showDestinationPreview(null);
 
   state = setRoute(state, route);
 
@@ -2150,6 +2241,7 @@ async function finishActiveJourney() {
   applyStepLockUI(false);
   selectedPlaces.start = null;
   selectedPlaces.end = null;
+  showDestinationPreview(null);
   if (pedometer.isEnabled()) {
     await pedometer.stopAutoDailyTracking();
     state = setPedometerAutoTrack(state, false);
@@ -2436,6 +2528,8 @@ function refreshUI() {
     shareSection.hidden = true;
 
   }
+
+  showDashboardDestinationImage(state.route);
 
 
 
