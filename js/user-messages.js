@@ -61,7 +61,7 @@ export function pedometerHint(ctx = {}) {
   }
 
   if (kind === 'android-pwa' || isAndroidBrowser()) {
-    return '画面を開いている間は歩数を記録します。常時記録には note に記載の Android版をインストールしてください。';
+    return '画面を開いている間は歩数を記録します。画面を消しても記録するには、スマホにアプリを入れてください。';
   }
 
   if (fitActive || googleFitConnected) {
@@ -69,7 +69,7 @@ export function pedometerHint(ctx = {}) {
   }
 
   if (googleFitAvailable) {
-    return '常時記録には Android版（APK）のインストールをおすすめします。';
+    return '画面を消しても記録するには、スマホにアプリを入れるのがおすすめです。';
   }
 
   if (isIosBrowser()) {
@@ -137,7 +137,7 @@ export function iosInstallHint() {
 }
 
 export function nativeAppInstallWarning() {
-  return '画面を消すと歩数の記録が止まります。常時記録には note に記載の Android版をインストールしてください。';
+  return '画面を消すと歩数の記録が止まります。スマホにアプリを入れると、画面を消しても歩数がたまります（約1分・無料）。';
 }
 
 export function iosWebInstallWarning() {

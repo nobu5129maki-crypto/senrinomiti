@@ -331,7 +331,7 @@ function updateInstallModeWarning() {
     box.removeAttribute('hidden');
     if (apkLink) {
       apkLink.href = INSTALL_PAGE_URL || '/install-android.html';
-      apkLink.textContent = 'Android版をインストール（常時記録）';
+      apkLink.textContent = 'アプリを入れる（3ステップ・約1分）';
       apkLink.removeAttribute('hidden');
     }
     return;
@@ -509,6 +509,8 @@ function initInstallPrompt() {
     e.preventDefault();
     deferredInstallPrompt = e;
     if (localStorage.getItem(INSTALL_DISMISS_KEY)) return;
+    // Android は「アプリを入れる」案内に一本化（ホーム画面追加と二重に出さない）
+    if (userMsg.isAndroidBrowser?.() && INSTALL_PAGE_URL) return;
     banner.removeAttribute('hidden');
     document.body.classList.add('has-install-banner');
   });
