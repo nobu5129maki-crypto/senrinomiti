@@ -1374,11 +1374,17 @@ export async function setEnabled(on, onSteps) {
   return { ok: true };
 }
 
+/**
+ * 外部万歩計の表示値を取り込む。
+ * 旅への加算は呼び出し側（app.js の取り込みボタン）が行うため、
+ * ここでは pending に乗せず（flush で二重計上されないよう）セッション歩数のみ進める。
+ */
 export function syncExternalReading(externalTotal, lastExternalTotal) {
   const delta = Math.max(0, Math.floor(externalTotal) - Math.floor(lastExternalTotal));
   if (delta > 0) {
-    applySessionDelta(delta, Date.now());
-    flushPending();
+    sessionSteps += delta;
+    lastStepTime = Date.now();
+    lastMotionAt = lastStepTime;
   }
   return delta;
 }

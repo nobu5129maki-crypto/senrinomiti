@@ -631,8 +631,13 @@ function resolveLandmarkData(cityKey, name, spotId = null) {
 
 /** チェックポイントに風景・特産画像を付与（マスタデータを常に優先） */
 export function enrichCheckpoint(cp, cityKey = null) {
-  const data = resolveLandmarkData(cityKey || cp.cityKey, cp.name, cp.spotId);
-  const resolvedKey = data.spotId || cp.spotId || findLandmarkKey(cityKey || cp.cityKey, cp.name);
+  // 「AとBの途中」のような汎用地点は、名前の部分一致で名所を拾わない
+  const data = cp.generic
+    ? fallbackImages(cp.name)
+    : resolveLandmarkData(cityKey || cp.cityKey, cp.name, cp.spotId);
+  const resolvedKey = cp.generic
+    ? null
+    : (data.spotId || cp.spotId || findLandmarkKey(cityKey || cp.cityKey, cp.name));
 
   return {
     ...cp,

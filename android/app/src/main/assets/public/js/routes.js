@@ -1,6 +1,6 @@
 import { routeTotalDistance, buildGreatCirclePath, greatCirclePoint } from './geo.js';
 import { enrichCheckpoint } from './landmarks.js';
-import { attachSpotMetadata } from './spots.js';
+import { attachSpotMetadata, findNearestSpot } from './spots.js';
 import { lockRouteDestination, lockSpotImage } from './spot-image.js';
 import { CITIES, JAPAN_CITY_KEYS } from './cities.js';
 import { lookupJapanCityKey, resolveJapaneseArea } from './ja-areas.js';
@@ -235,11 +235,19 @@ export function createRouteFromPlaces(start, end, mode, options = {}) {
   end = attachSpotMetadata(end);
 
   const midPt = greatCirclePoint(start.lat, start.lng, end.lat, end.lng, 0.5);
-  const mid = {
-    name: `${start.name}と${end.name}の途中`,
-    lat: midPt.lat,
-    lng: midPt.lng
-  };
+  // 中間点の近くに名所があれば「〇〇を通過」にする（起点・目的地そのものは除く）
+  const midRadiusKm = mode === 'world' ? 250 : 40;
+  const nearMid = findNearestSpot(midPt.lat, midPt.lng, mode, midRadiusKm);
+  const midSpot = nearMid && nearMid.id !== start.spotId && nearMid.id !== end.spotId ? nearMid : null;
+  const mid = midSpot
+    ? { name: midSpot.name, lat: midSpot.lat, lng: midSpot.lng, spotId: midSpot.id }
+    : {
+      name: `${start.name}と${end.name}の途中`,
+      lat: midPt.lat,
+      lng: midPt.lng,
+      // 名前に含まれる都市名から誤って名所画像を拾わないよう、汎用表示にする
+      generic: true
+    };
 
   const path = buildGreatCirclePath(start.lat, start.lng, end.lat, end.lng);
   const totalKm = routeTotalDistance(path);
@@ -299,9 +307,13 @@ function buildPlaceCheckpoints(start, mid, end, totalKm, extraCheckpoints = []) 
     name: mid.name,
     lat: mid.lat,
     lng: mid.lng,
+    spotId: mid.spotId || null,
+    generic: Boolean(mid.generic),
     distanceKm: midDist,
-    description: '折り返し地点を通過。あと半分！'
-  }));
+    description: mid.spotId
+      ? `折り返し地点の${mid.name}を通過。あと半分！`
+      : '折り返し地点を通過。あと半分！'
+  }, mid.spotId || null));
 
   base.push(...extras);
 

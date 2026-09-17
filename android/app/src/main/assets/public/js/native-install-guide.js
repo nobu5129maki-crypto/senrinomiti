@@ -20,6 +20,15 @@ function shouldShowGuide() {
   }
 }
 
+/** チェックポイント・ゴール演出やオンボーディングが出ている間は割り込まない */
+function isSomethingElseOpen() {
+  return Boolean(
+    document.querySelector(
+      '#checkpoint-overlay:not([hidden]), #goal-modal:not([hidden]), .modal-overlay:not([hidden]), #senri-welcome-modal'
+    )
+  );
+}
+
 function markDone() {
   try {
     localStorage.setItem(DONE_KEY, '1');
@@ -55,14 +64,14 @@ function showInstallGuideModal() {
     ].join(';');
 
     card.innerHTML =
-      '<span style="display:inline-block;background:#ecfdf5;color:#065954;font-size:0.75rem;font-weight:700;padding:4px 10px;border-radius:999px;margin-bottom:10px">有料 note ご購入者向け</span>' +
-      '<h2 style="margin:0 0 12px;font-size:20px;color:#065954">Android版をインストール</h2>' +
+      '<span style="display:inline-block;background:#ecfdf5;color:#065954;font-size:0.75rem;font-weight:700;padding:4px 10px;border-radius:999px;margin-bottom:10px">3ステップ・約1分・無料</span>' +
+      '<h2 style="margin:0 0 12px;font-size:20px;color:#065954">スマホにアプリを入れましょう</h2>' +
       '<p style="margin:0 0 20px;line-height:1.7;font-size:15px">' +
-      '常時で歩数を記録するには、<strong>Android版アプリ</strong>のインストールが必要です。' +
-      '画面を消していても、今日の歩数が旅に反映されます。Play ストアは不要です。' +
+      'アプリを入れると、<strong>画面を消していても歩数がたまります</strong>。' +
+      'Play ストアは使いません。次の画面のボタンを順番に押すだけです。' +
       '</p>' +
-      `<a id="senri-native-install-go" href="${installUrl()}" style="display:block;width:100%;padding:14px;border:none;border-radius:12px;background:#0c7a73;color:#fff;font-size:16px;font-weight:700;text-align:center;text-decoration:none;margin-bottom:10px;box-sizing:border-box">インストール手順を見る</a>` +
-      '<button type="button" id="senri-native-install-skip" style="width:100%;padding:12px;border:none;border-radius:12px;background:#eef7f4;color:#5f7a75;font-size:14px">あとで（ブラウザ版で試す）</button>';
+      `<a id="senri-native-install-go" href="${installUrl()}" style="display:block;width:100%;padding:16px;border:none;border-radius:12px;background:#0c7a73;color:#fff;font-size:17px;font-weight:800;text-align:center;text-decoration:none;margin-bottom:10px;box-sizing:border-box">アプリを入れる</a>` +
+      '<button type="button" id="senri-native-install-skip" style="width:100%;padding:12px;border:none;border-radius:12px;background:#eef7f4;color:#5f7a75;font-size:14px">あとで（このまま使う）</button>';
 
     overlay.appendChild(card);
     document.body.appendChild(overlay);
@@ -81,9 +90,13 @@ function showInstallGuideModal() {
   });
 }
 
-/** Android ブラウザ初回: ネイティブ版インストールを案内 */
-export async function runNativeInstallGuideIfNeeded() {
+/**
+ * Android ブラウザ初回: ネイティブ版インストールを案内
+ * @param {{ hasRoute?: boolean }} ctx 旅の途中なら割り込まず、下部バナーに任せる
+ */
+export async function runNativeInstallGuideIfNeeded(ctx = {}) {
   if (!shouldShowGuide()) return false;
+  if (ctx.hasRoute || isSomethingElseOpen()) return false;
   await showInstallGuideModal();
   return true;
 }

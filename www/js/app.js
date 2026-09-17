@@ -118,7 +118,7 @@ import {
 } from './save-slots.js';
 import * as userMsg from './user-messages.js';
 import { enrichCheckpoint, getDestinationLandmark, DEFAULT_SPOT, DEFAULT_FOOD, FALLBACK_SPOT, needsRemoteImage, findLandmarkKey } from './landmarks.js';
-import { fetchPlaceImage } from './wiki-images.js';
+import { fetchPlaceImage, fetchRegisteredSpotRepairImage } from './wiki-images.js';
 import { applySpotImage, isCatalogSpot, resolveSpotImageUrl } from './spot-image.js';
 
 
@@ -174,6 +174,65 @@ async function loadRemoteSpotImage(imgEl, data, name, lat, lng) {
 
 function hasVisibleImage(imgEl) {
   return Boolean(imgEl?.getAttribute('src')) && !imgEl.classList.contains('spot-image-missing');
+}
+
+/** 画像が最終的に無いとき、空枠や壊れた画像アイコンを見せない */
+function hideMissingImageFrame(imgEl) {
+  if (!imgEl) return;
+  const wrap = imgEl.closest('#destination-hero, #end-preview');
+  if (wrap) {
+    wrap.hidden = true;
+    const caption = wrap.querySelector('#end-preview-caption');
+    if (caption) caption.textContent = '';
+  }
+  if (imgEl.classList.contains('suggestion-thumb')) imgEl.remove();
+  imgEl.alt = '';
+}
+
+/**
+ * 名所マスタの画像 URL が 404 になった場合の自己修復。
+ * applySpotImage が諦めたら Wikipedia のページ画像で補完し、無ければ枠を隠す。
+ */
+function bindMissingSpotImageRepair() {
+  const inflight = new WeakSet();
+  document.addEventListener('spot-image-missing', async (event) => {
+    const img = event.target;
+    if (!(img instanceof HTMLImageElement) || inflight.has(img)) return;
+    inflight.add(img);
+    const name = event.detail?.name || '';
+
+    let url = null;
+    try {
+      url = name ? await fetchRegisteredSpotRepairImage(name) : null;
+    } catch {
+      url = null;
+    }
+
+    if (!img.isConnected) return;
+    if (!url) {
+      hideMissingImageFrame(img);
+      return;
+    }
+
+    img.onerror = () => {
+      img.onerror = null;
+      img.removeAttribute('src');
+      img.classList.add('spot-image-missing');
+      hideMissingImageFrame(img);
+    };
+    img.onload = () => {
+      img.onload = null;
+      img.classList.remove('spot-image-missing');
+      const wrap = img.closest('#destination-hero, #end-preview');
+      if (wrap) {
+        wrap.hidden = false;
+        const caption = wrap.querySelector('#end-preview-caption');
+        if (caption) caption.textContent = 'この景色を目指して歩こう';
+      }
+    };
+    img.referrerPolicy = 'no-referrer';
+    img.src = url;
+  });
 }
 
 function showDestinationPreview(place) {
@@ -279,6 +338,7 @@ async function init() {
   try { bindSaveSlots(); } catch (e) { console.error('bindSaveSlots', e); }
   try { bindGoalModal(); } catch (e) { console.error('bindGoalModal', e); }
   try { bindCheckpointModal(); } catch (e) { console.error('bindCheckpointModal', e); }
+  try { bindMissingSpotImageRepair(); } catch (e) { console.error('bindMissingSpotImageRepair', e); }
 
   pedometer.setCreditedTodayGetter?.(() => state.pedometerTodaySteps || 0);
   pedometer.setJourneyActiveGetter?.(() => Boolean(state.route));
@@ -423,9 +483,9 @@ async function bootstrapPedometer() {
   }
 
   if (userMsg.isAndroidBrowser?.()) {
-    await runNativeInstallGuideIfNeeded();
+    await runNativeInstallGuideIfNeeded({ hasRoute: Boolean(state.route) });
   } else if (userMsg.isIosBrowser?.()) {
-    await runIosInstallGuideIfNeeded();
+    await runIosInstallGuideIfNeeded({ hasRoute: Boolean(state.route) });
   }
 
   await restorePedometer();
@@ -491,6 +551,8 @@ function initInstallPrompt() {
 
   if (isIOS) {
     if (localStorage.getItem(INSTALL_DISMISS_KEY)) return;
+    // iPhone は「ホーム画面に追加」バナー（ios-install.js）に一本化。二重に出さない
+    if (IOS_INSTALL_PAGE_URL) return;
     const installTitle = $('#install-title');
     if (installTitle) installTitle.textContent = 'ホーム画面に追加';
     installDesc.textContent = '約30秒・App Store不要';
@@ -1157,9 +1219,15 @@ function bindDashboard() {
 
 
 function onProgressUpdate() {
-  checkCheckpoints();
-  if (!showingCheckpoint && !checkpointQueue.length) {
-    checkGoal();
+  try {
+    checkCheckpoints();
+    if (!showingCheckpoint && !checkpointQueue.length) {
+      checkGoal();
+    }
+  } catch (err) {
+    // 演出側の失敗で歩数反映（refreshUI）が止まらないようにする
+    console.error('checkpoint/goal update failed', err);
+    showingCheckpoint = false;
   }
   refreshUI();
 }
@@ -1218,14 +1286,17 @@ function showCheckpointModal(cp) {
   if (!isCatalogSpot(data.spotId, data.name)) {
     loadRemoteSpotImage($('#checkpoint-spot-img'), data, data.name, cp.lat, cp.lng);
   }
-  $('#checkpoint-spot-img').alt = data.spotLabel || data.name;
-  $('#checkpoint-spot-label').textContent = data.spotLabel || data.name;
-  $('#checkpoint-arrival').textContent = '📍 チェックポイント到達';
-  $('#checkpoint-title').textContent = `${data.name}を通過しました！`;
-  $('#checkpoint-desc').textContent = data.description || '';
+  const setText = (sel, text) => { const el = $(sel); if (el) el.textContent = text; };
+  const spotImg = $('#checkpoint-spot-img');
+  if (spotImg) spotImg.alt = data.spotLabel || data.name;
+  setText('#checkpoint-spot-label', data.spotLabel || data.name);
+  setText('#checkpoint-arrival', '📍 チェックポイント到達');
+  setText('#checkpoint-title', `${data.name}を通過しました！`);
+  setText('#checkpoint-desc', data.description || '');
   setImageWithFallback($('#checkpoint-specialty-img'), data.specialtyImage, DEFAULT_FOOD);
-  $('#checkpoint-specialty-img').alt = data.specialtyName;
-  $('#checkpoint-specialty-name').textContent = data.specialtyName;
+  const specialtyImg = $('#checkpoint-specialty-img');
+  if (specialtyImg) specialtyImg.alt = data.specialtyName || '';
+  setText('#checkpoint-specialty-name', data.specialtyName || '');
 
   showOverlay(overlay);
   celebrateCheckpoint();
@@ -1658,6 +1729,20 @@ async function saveCurrentToSlot(index) {
 
 
 
+function mergeCollections(current = [], incoming = []) {
+  const seen = new Set();
+  const merged = [];
+  for (const item of [...(current || []), ...(incoming || [])]) {
+    if (!item) continue;
+    const key = `${item.routeId || ''}|${item.achievedAt || ''}|${item.totalSteps || 0}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    merged.push(item);
+  }
+  merged.sort((a, b) => String(b.achievedAt || '').localeCompare(String(a.achievedAt || '')));
+  return merged;
+}
+
 async function loadFromSaveSlot(index) {
   const slot = getSaveSlot(index);
   if (!slot?.state) return;
@@ -1672,7 +1757,9 @@ async function loadFromSaveSlot(index) {
     await pedometer.stopAutoDailyTracking();
   }
 
-  state = replaceState(slot.state);
+  // 旅の足跡（達成記録）はセーブ単位ではなく端末全体の実績なので、ロードで消さず統合する
+  const mergedCollection = mergeCollections(state.collection, slot.state.collection);
+  state = replaceState({ ...slot.state, collection: mergedCollection });
   selectedPlaces.start = null;
   selectedPlaces.end = null;
   showDestinationPreview(null);
@@ -1822,6 +1909,7 @@ function renderSuggestionList(results, listEl, key) {
       thumb.className = 'suggestion-thumb';
       thumb.alt = '';
       thumb.referrerPolicy = 'no-referrer';
+      thumb.onerror = () => thumb.remove();
       thumb.src = thumbUrl;
       li.insertBefore(thumb, li.firstChild);
     }

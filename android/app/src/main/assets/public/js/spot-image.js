@@ -15,8 +15,12 @@ const KNOWN_BROKEN_IMAGE_RE = [
   /\/Matsushima_miyagi\.jpg/i, // 旧URL（_z 無し）は削除済み
 ];
 
+/** このセッション中に読み込み失敗した URL（毎回 404 を叩き直さない） */
+const deadUrls = new Set();
+
 function isKnownBrokenUrl(url) {
   if (!url) return false;
+  if (deadUrls.has(url)) return true;
   return KNOWN_BROKEN_IMAGE_RE.some((re) => re.test(url));
 }
 
@@ -132,39 +136,66 @@ export function applySpotImage(imgEl, spotId, name, storedUrl = null) {
     imgEl.referrerPolicy = 'no-referrer';
   }
 
-  imgEl.onerror = () => {
+  const rawId = locked?.spotId || spotId || '';
+  const tried = new Set();
+  const giveUp = () => {
     imgEl.onerror = null;
-    const rawId = locked?.spotId || spotId || '';
-    const camelKey = String(rawId).replace(/-([a-z])/g, (_, c) => c.toUpperCase());
-    const remoteFallback =
-      remoteFallbackForUrl(locked?.spotImage || storedUrl || url) ||
-      SPOT_REMOTE_FALLBACKS?.[rawId] ||
-      SPOT_REMOTE_FALLBACKS?.[camelKey] ||
-      (locked?.spotImage && locked.spotImage !== imgEl.src ? locked.spotImage : null);
-
-    if (remoteFallback && !String(imgEl.src || '').includes(remoteFallback.split('/').pop())) {
-      if (isForeignSpotImage(remoteFallback, rawId, name)) {
-        imgEl.removeAttribute('src');
-        imgEl.classList.add('spot-image-missing');
-        return;
-      }
-      imgEl.referrerPolicy = 'no-referrer';
-      imgEl.src = remoteFallback;
-      return;
-    }
-
-    // 他目的地で東京タワーを出さない
-    if (fallback && fallback !== imgEl.src && !isBlockedGenericUrl(fallback, rawId)) {
-      imgEl.src = fallback;
-      return;
-    }
     imgEl.removeAttribute('src');
     imgEl.classList.add('spot-image-missing');
+    // 呼び出し側（app.js）が Wikipedia 補完や枠の非表示を行えるよう通知
+    imgEl.dispatchEvent(new CustomEvent('spot-image-missing', {
+      bubbles: true,
+      detail: { spotId: rawId, name: name || locked?.spotLabel || '' }
+    }));
+  };
+  const tryNext = (candidate) => {
+    if (!candidate || tried.has(candidate)) return false;
+    tried.add(candidate);
+    imgEl.referrerPolicy = 'no-referrer';
+    imgEl.src = candidate;
+    return true;
   };
 
-  imgEl.src = url || fallback || '';
-  if (!imgEl.src) imgEl.classList.add('spot-image-missing');
-  else imgEl.classList.remove('spot-image-missing');
+  imgEl.onerror = () => {
+    const current = imgEl.getAttribute('src') || '';
+    if (current) {
+      tried.add(current);
+      if (/^https?:/i.test(current)) deadUrls.add(current);
+    }
+
+    const camelKey = String(rawId).replace(/-([a-z])/g, (_, c) => c.toUpperCase());
+    const candidates = [
+      remoteFallbackForUrl(locked?.spotImage || storedUrl || url),
+      SPOT_REMOTE_FALLBACKS?.[rawId],
+      SPOT_REMOTE_FALLBACKS?.[camelKey],
+      locked?.spotImage,
+      fallback,
+    ].filter(Boolean);
+
+    for (const candidate of candidates) {
+      if (tried.has(candidate) || deadUrls.has(candidate)) continue;
+      // 他目的地の画像・汎用の東京タワー画像は出さない
+      if (isForeignSpotImage(candidate, rawId, name) || isBlockedGenericUrl(candidate, rawId)) {
+        tried.add(candidate);
+        continue;
+      }
+      if (tryNext(candidate)) return;
+    }
+    giveUp();
+  };
+
+  const first = [url, fallback].find((u) => u && !deadUrls.has(u)) || '';
+  if (first) {
+    tried.add(first);
+    imgEl.src = first;
+    imgEl.classList.remove('spot-image-missing');
+  } else if (locked) {
+    // 登録名所なのに使える URL が無い → 補完を依頼
+    giveUp();
+  } else {
+    imgEl.removeAttribute('src');
+    imgEl.classList.add('spot-image-missing');
+  }
 
   return locked;
 }

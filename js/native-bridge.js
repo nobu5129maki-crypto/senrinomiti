@@ -38,8 +38,20 @@ export function isIosPwaInstalled() {
     || window.navigator.standalone === true;
 }
 
+/**
+ * Capacitor の可能性がまったく無い純ブラウザか。
+ * Capacitor はページスクリプトより前に window.Capacitor を注入するため、
+ * それが無く WebView（; wv）でもなければ待つ意味がない。
+ */
+function isPlainBrowser() {
+  if (window.Capacitor) return false;
+  const ua = navigator.userAgent || '';
+  return !/; wv\)|Capacitor/i.test(ua);
+}
+
 export async function waitForCapacitorBridge() {
   if (isCapacitorNative()) return true;
+  if (isPlainBrowser()) return false;
   const deadline = Date.now() + WAIT_MS;
   while (Date.now() < deadline) {
     await new Promise((resolve) => setTimeout(resolve, POLL_MS));
@@ -66,6 +78,7 @@ export async function waitForDailyStepsPlugin() {
   await waitForCapacitorBridge();
   let plugin = getDailyStepsPlugin();
   if (plugin) return plugin;
+  if (isPlainBrowser()) return null;
 
   const deadline = Date.now() + WAIT_MS;
   while (Date.now() < deadline) {

@@ -213,6 +213,36 @@ async function fetchGeoImage(lat, lng) {
 }
 
 /**
+ * 名所マスタの画像 URL が削除・404 になっていたときの補完。
+ * 名称そのままで Wikipedia（ja → en）のページ画像だけを使い、あいまい検索はしない。
+ * @param {string} spotName
+ * @returns {Promise<string|null>}
+ */
+export async function fetchRegisteredSpotRepairImage(spotName) {
+  const name = spotName?.trim();
+  if (!name) return null;
+
+  const cacheKey = `repair:${name.toLowerCase()}`;
+  const cached = getCached(cacheKey);
+  if (cached) return cached;
+
+  for (const lang of ['ja', 'en']) {
+    try {
+      const title = await searchWikiTitle(name, lang);
+      if (!title) continue;
+      const url = await fetchWikiSummaryImage(title, lang);
+      if (url && !isBlockedImageUrl(url)) {
+        saveCacheEntry(cacheKey, url);
+        return url;
+      }
+    } catch {
+      /* 次の言語へ */
+    }
+  }
+  return null;
+}
+
+/**
  * @param {string} placeName
  * @param {{ lat?: number, lng?: number, lang?: string, cityKey?: string }} [options]
  * @returns {Promise<string|null>}

@@ -20,6 +20,15 @@ function shouldShowGuide() {
   }
 }
 
+/** チェックポイント・ゴール演出やオンボーディングが出ている間は割り込まない */
+function isSomethingElseOpen() {
+  return Boolean(
+    document.querySelector(
+      '#checkpoint-overlay:not([hidden]), #goal-modal:not([hidden]), .modal-overlay:not([hidden]), #senri-welcome-modal'
+    )
+  );
+}
+
 function markDone() {
   try {
     localStorage.setItem(DONE_KEY, '1');
@@ -81,9 +90,13 @@ function showInstallGuideModal() {
   });
 }
 
-/** Android ブラウザ初回: ネイティブ版インストールを案内 */
-export async function runNativeInstallGuideIfNeeded() {
+/**
+ * Android ブラウザ初回: ネイティブ版インストールを案内
+ * @param {{ hasRoute?: boolean }} ctx 旅の途中なら割り込まず、下部バナーに任せる
+ */
+export async function runNativeInstallGuideIfNeeded(ctx = {}) {
   if (!shouldShowGuide()) return false;
+  if (ctx.hasRoute || isSomethingElseOpen()) return false;
   await showInstallGuideModal();
   return true;
 }

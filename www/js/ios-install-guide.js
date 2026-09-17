@@ -52,15 +52,15 @@ function showInstallGuideModal() {
     ].join(';');
 
     card.innerHTML =
-      '<span style="display:inline-block;background:#ecfdf5;color:#065954;font-size:0.75rem;font-weight:700;padding:4px 10px;border-radius:999px;margin-bottom:10px">有料 note ご購入者向け</span>' +
-      '<h2 style="margin:0 0 12px;font-size:20px;color:#065954">iPhone版を追加</h2>' +
+      '<span style="display:inline-block;background:#ecfdf5;color:#065954;font-size:0.75rem;font-weight:700;padding:4px 10px;border-radius:999px;margin-bottom:10px">3タップ・約30秒・無料</span>' +
+      '<h2 style="margin:0 0 12px;font-size:20px;color:#065954">ホーム画面に追加しましょう</h2>' +
       '<p style="margin:0 0 20px;line-height:1.7;font-size:15px">' +
       (inSafari
-        ? 'ホーム画面に追加すると、<strong>アプリのようにワンタップ</strong>で開けます。App Store 不要・約30秒で完了します。'
-        : 'インストール手順ページを <strong>Safari</strong> で開くと、3タップでホーム画面に追加できます。') +
+        ? 'ホーム画面に追加すると、<strong>アプリのようにワンタップ</strong>で開けます。App Store は使いません。'
+        : '<strong>Safari</strong> で開くと、3タップでホーム画面に追加できます。App Store は使いません。') +
       '</p>' +
-      `<a id="senri-ios-install-go" href="${installUrl()}" style="display:block;width:100%;padding:14px;border:none;border-radius:12px;background:#0c7a73;color:#fff;font-size:16px;font-weight:700;text-align:center;text-decoration:none;margin-bottom:10px;box-sizing:border-box">${inSafari ? '追加手順を見る' : 'Safariで手順を見る'}</a>` +
-      '<button type="button" id="senri-ios-install-skip" style="width:100%;padding:12px;border:none;border-radius:12px;background:#eef7f4;color:#5f7a75;font-size:14px">あとで（ブラウザのまま使う）</button>';
+      `<a id="senri-ios-install-go" href="${installUrl()}" style="display:block;width:100%;padding:16px;border:none;border-radius:12px;background:#0c7a73;color:#fff;font-size:17px;font-weight:800;text-align:center;text-decoration:none;margin-bottom:10px;box-sizing:border-box">${inSafari ? 'ホーム画面に追加する' : 'Safari で開く'}</a>` +
+      '<button type="button" id="senri-ios-install-skip" style="width:100%;padding:12px;border:none;border-radius:12px;background:#eef7f4;color:#5f7a75;font-size:14px">あとで（このまま使う）</button>';
 
     overlay.appendChild(card);
     document.body.appendChild(overlay);
@@ -79,8 +79,21 @@ function showInstallGuideModal() {
   });
 }
 
-export async function runIosInstallGuideIfNeeded() {
+/** チェックポイント・ゴール演出やオンボーディングが出ている間は割り込まない */
+function isSomethingElseOpen() {
+  return Boolean(
+    document.querySelector(
+      '#checkpoint-overlay:not([hidden]), #goal-modal:not([hidden]), .modal-overlay:not([hidden]), #senri-welcome-modal'
+    )
+  );
+}
+
+/**
+ * @param {{ hasRoute?: boolean }} ctx 旅の途中なら割り込まず、下部バナーに任せる
+ */
+export async function runIosInstallGuideIfNeeded(ctx = {}) {
   if (!shouldShowGuide()) return false;
+  if (ctx.hasRoute || isSomethingElseOpen()) return false;
   await showInstallGuideModal();
   return true;
 }

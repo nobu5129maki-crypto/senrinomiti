@@ -34,14 +34,11 @@ export function initAndroidInstallPrompt() {
   banner.innerHTML =
     '<div class="android-install-banner-inner">' +
     '<div class="android-install-banner-text">' +
-    '<strong>常時で歩数を記録するには Android版</strong>' +
-    '<span>有料 note ご購入者向け。画面を消しても歩数がたまります（Play ストア不要）</span>' +
+    '<strong>スマホにアプリを入れると、画面を消しても歩数がたまります</strong>' +
+    '<span>3ステップ・約1分・無料（Play ストア不要）</span>' +
     '</div>' +
     '<div class="android-install-banner-actions">' +
-    `<a class="btn btn-primary btn-block" href="${installPageUrl()}">Android版をインストール</a>` +
-    (ANDROID_APK_URL
-      ? `<a class="btn btn-secondary btn-block" href="${ANDROID_APK_URL}" download>APKを直接ダウンロード</a>`
-      : '') +
+    `<a class="btn btn-primary btn-block" href="${installPageUrl()}">アプリを入れる</a>` +
     '<button type="button" class="android-install-dismiss" id="senri-android-install-dismiss">あとで</button>' +
     '</div></div>';
 

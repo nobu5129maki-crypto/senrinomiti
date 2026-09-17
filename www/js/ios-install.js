@@ -42,11 +42,11 @@ export function initIosInstallPrompt() {
   banner.innerHTML =
     '<div class="ios-install-banner-inner">' +
     '<div class="ios-install-banner-text">' +
-    '<strong>iPhone版をホーム画面に追加</strong>' +
-    `<span>${inSafari ? '約30秒・App Store不要。次回からワンタップで開けます' : 'Safari で開くと、3タップでインストールできます'}</span>` +
+    '<strong>ホーム画面に追加すると、アプリのようにワンタップで開けます</strong>' +
+    `<span>${inSafari ? '3タップ・約30秒・無料（App Store 不要）' : 'Safari で開くと、3タップで追加できます'}</span>` +
     '</div>' +
     '<div class="ios-install-banner-actions">' +
-    `<a class="btn btn-primary btn-block" href="${installPageUrl()}">${inSafari ? '追加手順を見る' : 'Safariで開く'}</a>` +
+    `<a class="btn btn-primary btn-block" href="${installPageUrl()}">${inSafari ? 'ホーム画面に追加する' : 'Safari で開く'}</a>` +
     (IOS_TESTFLIGHT_URL
       ? `<a class="btn btn-secondary btn-block" href="${IOS_TESTFLIGHT_URL}">TestFlight版</a>`
       : '') +
