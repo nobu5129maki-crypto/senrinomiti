@@ -14,13 +14,18 @@ export function isAndroidUser(ua = navigator.userAgent || '') {
   return /Android/i.test(ua);
 }
 
-export function isAndroidInAppBrowser() {
-  const ua = navigator.userAgent || '';
+/** note アプリの印。機種名の「Redmi Note」とは区別する */
+function looksLikeNoteApp(ua) {
+  if (/note\.com|Hatena/i.test(ua)) return true;
+  return /\bnote(?:app|\.com|\/)/i.test(ua);
+}
+
+export function isAndroidInAppBrowser(ua = typeof navigator !== 'undefined' ? navigator.userAgent || '' : '') {
   if (!/Android/i.test(ua)) return false;
   if (/Line\/|Instagram|FBAN|FBAV|Twitter|MicroMessenger|; wv\)/i.test(ua)) return true;
-  // note アプリ等（Chrome 表記でも WebView 相当）
-  if (/Notes?|note\.com|Hatena/i.test(ua)) return true;
+  if (looksLikeNoteApp(ua)) return true;
   if (/Chrome\/\d+/i.test(ua) && !/; wv\)/i.test(ua)) return false;
+  if (/SamsungBrowser|Firefox\/|EdgA\//i.test(ua)) return false;
   return true;
 }
 

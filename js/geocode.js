@@ -250,9 +250,21 @@ async function searchNominatim(q, mode) {
 
 const LANDMARK_CLASSES = new Set(['tourism', 'historic', 'amenity', 'natural', 'leisure', 'building']);
 
+/** 補助クエリ（「観光」など）で拾った、入力と無関係な候補を落とす */
+export function placeRelatesToQuery(place, query) {
+  const q = normalizeJaAddressQuery(query);
+  if (q.length < 2) return true;
+  const name = normalizeJaAddressQuery(place?.name);
+  const display = normalizeJaAddressQuery(place?.displayName);
+  if (name.includes(q) || display.includes(q)) return true;
+  if (name.length >= 2 && q.includes(name)) return true;
+  return false;
+}
+
 function rankNominatimResults(results, query) {
   const q = normalizeJaAddressQuery(query);
   return results
+    .filter((place) => placeRelatesToQuery(place, q))
     .map((place, i) => ({ place, score: scoreNominatimPlace(place, q, i) }))
     .sort((a, b) => b.score - a.score)
     .map(({ place }) => place);

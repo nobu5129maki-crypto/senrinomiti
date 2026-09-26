@@ -2,8 +2,27 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   bindIntentControl,
+  isAndroidInAppBrowser,
   openInChromeCandidates,
 } from '../js/install-flow.js';
+
+describe('isAndroidInAppBrowser', () => {
+  it('does not treat Redmi Note Chrome as the note app', () => {
+    const ua = 'Mozilla/5.0 (Linux; Android 11; Redmi Note 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36';
+    assert.equal(isAndroidInAppBrowser(ua), false);
+  });
+
+  it('still blocks the note app and WebView', () => {
+    assert.equal(
+      isAndroidInAppBrowser('Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 Chrome/120.0.0.0 Mobile Safari/537.36 note/2.1'),
+      true
+    );
+    assert.equal(
+      isAndroidInAppBrowser('Mozilla/5.0 (Linux; Android 13; Pixel 7; wv) AppleWebKit/537.36 Chrome/120.0.0.0 Mobile Safari/537.36'),
+      true
+    );
+  });
+});
 
 describe('openInChromeCandidates', () => {
   it('builds a Chrome intent that keeps the install page path', () => {
