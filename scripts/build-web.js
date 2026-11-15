@@ -18,7 +18,7 @@ const deploy = JSON.parse(
 const appVersion = deploy.appVersion || '1.0.0';
 const builtAt = new Date().toISOString();
 
-const COPY_ITEMS = ['index.html', 'install.html', 'install-android.html', 'install-ios.html', 'privacy.html', 'terms.html', 'manifest.json', 'sw.js', 'css', 'js', 'icons', 'images'];
+const COPY_ITEMS = ['index.html', 'install.html', 'install-android.html', 'install-ios.html', 'privacy.html', 'terms.html', 'manifest.json', 'manifest.webmanifest', 'sw.js', 'css', 'js', 'icons', 'images'];
 
 function absoluteUrl(base, pathValue) {
   if (!pathValue) return '';

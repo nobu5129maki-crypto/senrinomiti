@@ -3,7 +3,7 @@
   "short_name": "千里の道",
   "description": "歩数を距離に換算し、千里の道も一歩から仮想徒歩の旅を楽しむアプリ",
   "id": "./",
-  "start_url": "./index.html",
+  "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "display_override": ["standalone", "minimal-ui"],
